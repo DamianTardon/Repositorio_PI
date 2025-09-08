@@ -1,0 +1,59 @@
+Configuracón por defecto según manual del fabricante:
+
+Acquisition:
+    Mode: Normal
+
+Channel:
+    Scale: 2V/Div
+    Coupling: DC
+    BW limit: Off
+    Invert: Off
+    Probe attenuation voltage: x1
+    Channel 1 & 2: On
+
+Cursor:
+    Source: CH1
+    Cursor: Off
+
+Display
+    Type: Vectors
+    Accumulate: Off
+    Grid: Full
+
+Horizontal:
+    Scale: 2.5us/Div
+    H Pos Adj: Fine
+    Mode: Main Timebase
+    Hor Pos: 0
+
+Math
+    Type: + (Add)
+    Unit/Div: 2V
+    Position: 0.00 Div
+
+Measure
+    Item: Vpp, Vavg, Frequency, Duty Cycle, Rise Time
+
+Trigger:
+    Type: Edge
+    Mode: Auto
+    Coupling: DC
+    Noise Rejection: Off
+    Source: Channel1
+    Slope: +
+    Rejection: Off
+
+Utility:
+    Hardcopy: SaveImage, InkSaver On
+    ProbeComp: Square wave, 1k, 50% duty cycle
+
+Go-NoGo:
+    Go-NoGo: Off
+    When: 
+    Source: CH1
+    Violating: Stop
+
+Data Logging:
+    Data logging: Off
+    Setup: Waveform
+    Duration: 5 mins

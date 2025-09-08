@@ -1,0 +1,302 @@
+## NOTAS IMPORTANTES PARA EL USO EFECTIVO
+
+### Sintaxis General:
+- Los comandos pueden escribirse en mayúsculas o minúsculas
+- Los dos puntos (:) son obligatorios para separar niveles de jerarquía
+- Los corchetes angulares (<X>) indican el canal del osciloscopio (1, 2, 3 o 4)
+- El signo de interrogación (?) convierte comando de escritura en consulta
+
+<X> = número de canal: 1, 2, 3, 4
+
+### Flujo Típico de Configuración:
+1. Restablecer instrumento (*RST)
+2. Configurar canales (:CHANnel commands)
+3. Ajustar base de tiempo (:TIMebase commands)
+4. Configurar trigger (:TRIGger commands)
+5. Establecer modo de adquisición (:ACQuire commands)
+6. Iniciar medición (:RUN o :SINGle)
+7. Verificar errores (:SYSTem:ERRor?)
+
+### Consejos de Implementación:
+- Siempre verificar errores después de enviar comandos críticos
+- Usar *LRN? para documentar configuraciones exitosas
+- Validar respuestas numéricas antes de usarlas en cálculos
+- Implementar timeouts apropiados para comandos que pueden tardar
+- Considerar el orden de comandos (algunos dependen de otros)
+
+Formato de comando:
+                    trig:del:mod <NR1>LF
+                    |----------|-|---|--|
+                          1     2  3  4
+1: Cabecera de comando
+2: Espacio simple
+3: Parametro
+4: Final de mensaje
+
+Parametro Tipo          Descripción         Ejemplo
+          <Boolean>     boolean logic       0, 1
+          <NR1>         Integers            0, 1, 2, 3
+          <NR2>         decimal numbers     0.1, 3.14, 8.5
+          <NR3>         floating point      4.5e-1, 8.25e+1
+          <NRf>         any of NR1, 2, 3    1, 1.5, 4.5e-1
+
+# ============================================================================
+# LISTA COMPLETA DE COMANDOS SCPI
+# ============================================================================
+
+## COMANDOS DE IDENTIFICACIÓN Y CONTROL GENERAL
+
+'*IDN?'
+- descripción: Solicita identificación del instrumento
+- respuesta_típica: GW, GDS-1152A-U,N°serie, V1.00
+- uso: Verificar que el instrumento está conectado y respondiendo
+
+'*LRN?'
+- descripción: Solicita el estado completo del instrumento en formato de comandos SCPI
+- respuesta_típica: Una cadena larga con todos los comandos necesarios para restaurar el estado actual
+- uso: Capturar configuración completa para respaldo o duplicación de setup entre instrumentos
+- ejemplo_respuesta: ":TIMEBASE:SCALE 1.0E-3;:CHANNEL1:SCALE 1.0E0;:TRIGGER:LEVEL 0.0E0..."
+
+'*RST'
+- descripción: Restablece el instrumento a su configuración de fábrica
+- respuesta_típica: No devuelve respuesta (comando de escritura)
+- uso: Volver a un estado conocido antes de configurar mediciones específicas
+- nota_importante: Borra todas las configuraciones personalizadas y calibraciones de usuario
+
+## COMANDOS DE SISTEMA Y DIAGNÓSTICO
+
+':SYSTem:ERRor?'
+- descripción: Consulta el siguiente error en la cola de errores del sistema
+- respuesta_típica: "0,'No error'" o "-113,'Undefined header'" seguido del mensaje descriptivo
+- uso: Diagnosticar problemas de comunicación o comandos incorrectos
+- funcionamiento: Cada consulta extrae un error de la cola; repetir hasta obtener "No error"
+
+':SYSTem:VERSion?'
+- descripción: Consulta la versión del estándar SCPI que implementa el instrumento
+- respuesta_típica: "1999.0" (indica compatibilidad con SCPI-1999)
+- uso: Verificar compatibilidad de comandos y funcionalidades avanzadas
+
+## COMANDOS DE ADQUISICIÓN DE DATOS
+
+':ACQuire:AVERage <NR1>'
+- descripción: Establece el número de promedios para el modo de adquisición por promedio
+- valores_posibles: 0=Off, 1=2, 2=4, 3=8, 4=16, 5=32, 6=64, 7=128, 8=256
+- ejemplo: :ACQuire:AVERage 16 (promedia 16 adquisiciones)
+- uso: Reducir ruido en señales repetitivas mediante promediado
+
+':ACQuire:AVERage?'
+- descripción: Consulta el número actual de promedios configurado
+- respuesta_típica: 16 (número de adquisiciones a promediar)
+- uso: Verificar la configuración actual de promediado
+
+':ACQuire:MODe <NR1>'
+- descripción: Establece el modo de adquisición de datos
+- valores_posibles: 0=Normal, 1=Peak detect, 2=Average
+- ejemplo: :ACQuire:MODe AVERage (activa modo promediado)
+- uso: Optimizar adquisición según tipo de señal (ruidosa, repetitiva, transitoria)
+
+':ACQuire:MODe?'
+- descripción: Consulta el modo de adquisición actual
+- respuesta_típica: 0, 1, o 2
+- uso: Verificar qué tipo de procesamiento se está aplicando a las muestras
+
+## COMANDOS DE CANALES
+
+':CHANnel<X>:COUPling <NR1>'
+- descripción: Establece el tipo de acoplamiento para el canal especificado
+- valores_posibles: 0=AC, 1=DC, 2=GND
+- ejemplo: :CHANnel1:COUPling 1 (selecciona componente DC del canal 1)
+- uso: Seleccionar qué componentes de la señal se quieren observar
+
+':CHANnel<X>:COUPling?'
+- descripción: Consulta el tipo de acoplamiento del canal
+- ejemplo: :CHANnel1:COUPling?
+- respuesta_típica: 0 (Acoplamiento de Corriente Alterna)
+- uso: Verificar configuración de acoplamiento antes de realizar mediciones
+
+':CHANnel<X>:DISPlay <NR1>'
+- descripción: Habilita o deshabilita la visualización del canal
+- valores_posibles: 0=OFF, 1=ON
+- ejemplo: :CHANnel2:DISPlay 1 (muestra el canal 2 en pantalla)
+- uso: Controlar qué canales son visibles para análisis
+
+':CHANnel<X>:DISPlay?'
+- descripción: Consulta si el canal está visible en pantalla
+- ejemplo: :CHANnel1:DISPlay?
+- respuesta_típica: 1 (visible)
+- uso: Verificar qué canales están activos para mediciones
+
+':CHANnel:EXPand <X>,<NR1>'
+- descripción: Establece el factor de expansión vertical para el canal especificado.
+- valores_posibles: 0=Ground, 1=Center
+- ejemplo: :CHANnel1:EXPand 1 (expande el canal 1 desde el centro)
+- uso: 
+
+':CHANnel:EXPand? <X>'
+- descripción: Consulta el modo de expansión vertical actual del canal especificado
+- ejemplo: :CHANnel1:EXPand?
+- respuesta_típica: 1 (expande el canal 1 desde el centro)
+- uso: Conocer la configuración actual de expansión vertical del canal
+
+':CHANnel<X>:OFFSet <NR3>'
+- descripción: Establece el offset vertical del canal en voltios
+- ejemplo: :CHANnel1:OFFSet -2.5 (desplaza señal 2.5V hacia abajo)
+- uso: Desplazar señales verticalmente
+
+':CHANnel<X>:OFFSet?'
+- descripción: Consulta el offset vertical actual del canal
+- respuesta_típica: -2.50E+00 (-2.5 voltios)
+- uso: Conocer el desplazamiento aplicado a la señal del canal consultado
+
+':CHANnel<X>:PROBe:RATio <NRf>'
+- descripción: Establece el factor de atenuación de la sonda de prueba
+- valores_típicos: 1, 10, 100, 1000 (relación 1:1, 10:1, 100:1, 1000:1)
+- ejemplo: :CHANnel1:PROBe:RATio 10 (relacion de sonda 10:1)
+- uso: Calibrar lecturas según la sonda utilizada para mediciones precisas
+
+':CHANnel<X>:PROBe:RATio?'
+- descripción: Consulta el factor de atenuación configurado
+- respuesta_típica: 1.00E+01 (factor 10:1)
+- uso: Verificar que la configuración coincida con la sonda física conectada
+
+':CHANnel<X>:PROBe:TYPE <tipo>'
+- descripción: Establece el tipo de sonda conectada al canal
+- valores_posibles: 0=Voltage, 1=Current (voltaje o corriente)
+- ejemplo: :CHANnel1:PROBe:TYPE 0 (Configura en voltaje el tipo de sonda conectada al canal 1)
+- uso: Configurar unidades y escalado apropiados según el tipo de medición
+
+':CHANnel<X>:PROBe:TYPE?'
+- descripción: Consulta el tipo de sonda configurado
+- respuesta_típica: 0, 1
+- uso: Verificar que las unidades mostradas correspondan al tipo de medición
+
+':CHANnel<X>:SCALe <NR3>'
+- descripción: Establece la escala vertical del canal (voltios por división)
+- ejemplo: :CHANnel1:SCALe 2E+0 (2 voltios por división)
+- uso: Ajustar sensibilidad vertical para optimizar visualización de la señal
+- rangos_típicos: Desde 2mV/div hasta 5V/div
+
+':CHANnel<X>:SCALe?'
+- descripción: Consulta la escala vertical actual del canal
+- respuesta_típica: 2E-3 (2 milivoltios por división)
+- uso: Conocer la resolución vertical para cálculos de amplitud
+
+## COMANDOS DE BASE DE TIEMPO (TIMEBASE)
+
+':TIMebase:SCALe?'
+- descripción: Consulta la escala de tiempo actual (segundos por división)
+- respuesta_típica: 1.00E-03 (1 milisegundo por división)
+- uso: Conocer la configuración actual del eje temporal
+
+':TIMebase:SCALe <valor>'
+- descripción: Establece la escala de tiempo
+- ejemplo: :TIMebase:SCALe 5E-3 (5 milisegundos por división)
+- uso: Ajustar la resolución temporal de las mediciones
+- rangos_típicos: Desde 1ns/div hasta 100s/div (depende del modelo)
+
+## COMANDOS DE TRIGGER (DISPARO)
+
+':RUN'
+- descripción: Inicia la adquisición continua de datos
+- respuesta_típica: No devuelve respuesta (comando de acción)
+- uso: Comenzar o reanudar la captura de formas de onda
+- equivalencia: Presionar el botón "Run" en el panel frontal
+
+':SINGle'
+- descripción: Ejecuta una sola adquisición y luego se detiene
+- respuesta_típica: No devuelve respuesta (comando de acción)
+- uso: Capturar eventos únicos o transitorios sin adquisición continua
+- equivalencia: Presionar el botón "Single" en el panel frontal
+
+':TRIGger:COUPle <NR1>'
+- descripción: Establece el acoplamiento del circuito de trigger
+- valores_posibles: 1=AC, 2=DC
+- ejemplo: :TRIGger:COUPle 1 (ignora componente DC para el disparo)
+- uso: Filtrar componentes no deseadas que puedan causar triggers falsos
+
+':TRIGger:COUPle?'
+- descripción: Consulta el tipo de acoplamiento del trigger.
+- respuesta_típica: 1, 2
+- uso: Conocer la configuración actual del acoplamiento de disparo.
+
+':TRIGger:LEVel <NR3>'
+- descripción: Establece el nivel de voltaje que activa el trigger
+- ejemplo: :TRIGger:LEVel 1.5 (trigger a 1.5 voltios)
+- uso: Definir el umbral donde se inicia la captura de cada adquisición
+- rango: Depende de la escala del canal fuente del trigger
+
+':TRIGger:LEVel?'
+- descripción: Consulta el nivel de voltaje del trigger.
+- respuesta_típica: 1.50E-01 (150 mV).
+- uso: Conocer el umbral de voltaje configurado para el disparo.
+
+':TRIGger:MODe <NR1>'
+- descripción: Establece el modo de operación del trigger
+- valores_posibles: 1=Auto, 2=Normal
+- ejemplo: :TRIGger:MODe 2 (trigger solo cuando se cumple condición)
+- uso: Controlar comportamiento de adquisición
+
+':TRIGger:MODe?'
+- descripción: Consulta el modo de trigger actual.
+- respuesta_típica: 1, 2
+- uso: Conocer el tipo de condición de disparo configurada.
+
+':TRIGger:NREJ <Boolean>'
+- descripción: Habilita o deshabilita el rechazo de ruido en el trigger
+- valores_posibles: 0=OFF, 1=ON
+- ejemplo: :TRIGger:NREJ ON (activa filtro anti-ruido)
+- uso: Evitar triggers falsos causados por ruido de alta frecuencia
+
+':TRIGger:NREJ?'
+- descripción: Consulta el estado del rechazo de ruido del trigger.
+- respuesta_típica: 0, 1
+- uso: Verificar si está activado el filtro de ruido en el trigger.
+
+':TRIGger:REJect <NR1>'
+- descripción: Establece el tipo de rechazo de trigger.
+- valores_posibles: 0=OFF, 1=LF, 2=HF
+- ejemplo: :TRIGger:REJect 1 (Selecciona  filtro de rechazo de Baja frecuencia)
+- uso: Configurar filtros para rechazar componentes de frecuencia no deseadas en el trigger.
+
+':TRIGger:REJect?'
+- descripción: Consulta el tipo de rechazo de trigger configurado.
+- respuesta_típica: 0, 1, 2
+- uso: Conocer qué tipo de filtro de rechazo está activo en el trigger.
+
+':TRIGger:SLOP <NR1>'
+- descripción: Establece flanco de disparo
+- valores_posibles: 0=Positive, 1=Negative
+- ejemplo: :TRIGger:SLOP 0 (trigger en flanco ascendente)
+- uso: Seleccionar en qué transición de la señal se debe activar el trigger
+
+':TRIGger:SLOP?'
+- descripción: Consulta la pendiente de disparo configurada.
+- respuesta_típica: 0, 1
+- uso: Conocer si el trigger se activa en flanco ascendente o descendente.
+
+':TRIGger:STATe?'
+- descripción: Consulta el estado actual del sistema de trigger.
+- respuesta_típica: 0=No disparado, 1=Disparado
+- uso: Conocer si el trigger está detenido, esperando, disparado o en modo automático.
+
+':TRIGger:SOURce <NR1>'
+- descripción: Establece la fuente de señal para el trigger
+- valores_posibles: 0=Channel 1, 1=Channel 2, 2=Line, 3=External input
+- ejemplo: :TRIGger:SOURce 0 (usa canal 1 como referencia)
+- uso: Seleccionar qué señal controlará el momento de adquisición
+
+':TRIGger:SOURce?'
+- descripción: Consulta la fuente del trigger.
+- respuesta_típica: 0, 1, 2, 3
+- uso: Identificar qué señal está siendo utilizada como referencia de disparo.
+
+':TRIGger:TYPe <NR1>'
+- descripción: Establece el tipo de condición de trigger
+- valores_posibles: 0=Edge, 1=Video, 2=Pulse
+- ejemplo: :TRIGger:TYPe 0 (trigger por flanco)
+- uso: Configurar trigger para diferentes tipos de señales y eventos
+
+':TRIGger:TYPe?'
+- descripción: Consulta el tipo de trigger configurado.
+- respuesta_típica: 0, 1, 2
+- uso: Conocer el método de análisis de señal para el disparo.

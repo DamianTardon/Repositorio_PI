@@ -194,6 +194,9 @@ Parametro Tipo          Descripción         Ejemplo
 - uso: Ajustar la resolución temporal de las mediciones
 - rangos_típicos: Desde 1ns/div hasta 100s/div (depende del modelo)
 
+':TIMebase:DELay'
+
+
 ## COMANDOS DE TRIGGER (DISPARO)
 
 ':RUN'
@@ -210,7 +213,7 @@ Parametro Tipo          Descripción         Ejemplo
 
 ':TRIGger:COUPle <NR1>'
 - descripción: Establece el acoplamiento del circuito de trigger
-- valores_posibles: 1=AC, 2=DC
+- valores_posibles: 0=AC, 1=DC
 - ejemplo: :TRIGger:COUPle 1 (ignora componente DC para el disparo)
 - uso: Filtrar componentes no deseadas que puedan causar triggers falsos
 

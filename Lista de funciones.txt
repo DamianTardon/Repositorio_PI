@@ -1,0 +1,25 @@
+Iniciar sistema
+Iniciar instrumento
+Identificar instrumento
+Ontener configuracion actual
+Configurar valores de fabrica
+Configurar disparo unico
+Obtener/Configurar escala vertical
+Obtener/Configurar modo de adquisicion
+Obtener/Configurar escala horizontal
+Obtener/Configurar posicion horizontal
+Obtener/Configurar offset escala vertical
+Obtener/Configurar factor de atenuacion de canal
+Obtener/Configurar tipo de prueba (tension-corriente)
+Obtener/Configurar acoplo (dc-ac)
+Obtener/Configurar canal activo
+Obtener/Configurar acoplo de trigger (dc-ac)
+Obtener/Configurar nivel de trigger
+Obtener/Configurar modo de trigger
+Obtener/Configurar filtro de trigger
+Obtener/Configurar flanco de trigger
+Obtener/Configurar fuente de trigger
+Obtener/Configurar tipo de trigger
+Obtener/Configurar filtro de ruido de trigger
+Obtener estado de trigger
+

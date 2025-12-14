@@ -35,15 +35,94 @@ def plot_waveform_2(waveform, time_axis):
     plt.grid(True)
     plt.show()
 
+def plot_recorded_curve(time_axis, recorded_curve):
+    plt.figure(figsize=(12, 3))
+    plt.plot(time_axis, recorded_curve)
+    plt.title("Curva Registrada Original")
+    plt.xlabel("Tiempo [s]")
+    plt.ylabel("Tensión [V]")
+    plt.grid(True)
+    plt.show()
+
+def plot_offset_compensated_curve(time_axis, offset_compensated_curve):
+    plt.figure(figsize=(12, 3))
+    plt.plot(time_axis, offset_compensated_curve)
+    plt.title("Curva Registrada Compensada en Offset")
+    plt.xlabel("Tiempo [s]")
+    plt.ylabel("Tensión [V]")
+    plt.grid(True)
+    plt.show()
+
+def plot_normalized_curve(time_axis, normalized_curve):
+    plt.figure(figsize=(12, 3))
+    plt.plot(time_axis, normalized_curve)
+    plt.title("Curva Normalizada")
+    plt.xlabel("Tiempo [s]")
+    plt.ylabel("Tensión [V]")
+    plt.grid(True)
+    plt.show()
+
 def plot_cutting_signal(time_axis, original_signal, time_cutted, cutted_signal):
     plt.figure(figsize=(12, 3))
     # 1. Onda completa.
     plt.plot(time_axis, original_signal, color='red', label='Onda Completa')
     # 2. Parte recortada (sobrepuesta).
     plt.plot(time_cutted, cutted_signal, label='Datos para Ajuste (0.2 a 0.4)')
-    plt.title("Validación de Recorte")
+    plt.title("Curva Recortada para Ajuste")
     plt.legend()
     plt.xlabel("Tiempo [s]")
     plt.ylabel("Tensión [V]")
+    plt.grid(True)
+    plt.show()
+
+def plot_fitting_signal(time_cutted, cutted_signal, fitting_curve):
+    plt.figure(figsize=(12, 3))
+    plt.plot(time_cutted, cutted_signal, '.', label='Datos para Ajuste')
+    plt.plot(time_cutted, fitting_curve, 'r-', label='Ajuste Doble Exponencial')
+    plt.title("Ajuste de Curva Base")
+    plt.xlabel("Tiempo [s]")
+    plt.ylabel("Tensión [V]")
+    plt.legend()
+    plt.grid(True)
+    plt.show()
+
+def plot_base_curve(time_axis, original_signal, base_curve):
+    plt.figure(figsize=(12, 3))
+    plt.plot(time_axis, original_signal, label='Curva original')
+    plt.plot(time_axis, base_curve, 'r-', label='Curva Base')
+    plt.title("Curva Base")
+    plt.xlabel("Tiempo [s]")
+    plt.ylabel("Tensión [V]")
+    plt.legend()
+    plt.grid(True)
+    plt.show()
+
+def plot_residual_curve(time_axis, residual_curve):
+    plt.figure(figsize=(12, 3))
+    plt.plot(time_axis, residual_curve, label='Curva Residual')
+    plt.title("Curva Residual")
+    plt.xlabel("Tiempo [s]")
+    plt.ylabel("Tensión [V]")
+    plt.legend()
+    plt.grid(True)
+    plt.show()
+
+def plot_filtered_residual_curve(time_axis, filtered_residual):
+    plt.figure(figsize=(12, 3))
+    plt.plot(time_axis, filtered_residual, label='Curva Residual Filtrada')
+    plt.title("Curva Residual Filtrada")
+    plt.xlabel("Tiempo [s]")
+    plt.ylabel("Tensión [V]")
+    plt.legend()
+    plt.grid(True)
+    plt.show()
+
+def plot_test_voltage_curve(time_axis, test_voltage_curve):
+    plt.figure(figsize=(12, 3))
+    plt.plot(time_axis, test_voltage_curve, label='Curva de Tensión de Ensayo')
+    plt.title("Curva de Tensión de Ensayo")
+    plt.xlabel("Tiempo [s]")
+    plt.ylabel("Tensión [V]")
+    plt.legend()
     plt.grid(True)
     plt.show()

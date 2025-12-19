@@ -2,7 +2,7 @@ import numpy as np
 import matplotlib.pyplot as plt
 
 def print_information(metadata, data):
-    print(f"Versión de TDG: {metadata['sotfware_version']}")
+    print(f"Versión de TDG: {metadata['software_version']}")
     print(f"Versión de archivo de datos: {metadata['version_file']}")
     print(f"Nombre de onda: {metadata['wave_name']}")
     print(f"Resolución de datos: {metadata['resolution']}")

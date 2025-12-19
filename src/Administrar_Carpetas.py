@@ -145,6 +145,7 @@ class FileManager:
 
             for line in f:
                 if line.strip():
-                    data.append(int(line.strip()))
+                    #data.append(int(line.strip()))
+                    data.append(float(line.strip()))
 
         return metadata, data

@@ -32,11 +32,12 @@ class LightningImpulseAnalyzer:
         self.residual_curve = None
         self.filter_coeffs = None
         self.filtered_residual = None
+        self.test_voltage_curve_abs = None
         self.test_voltage_curve = None
         self.Ut = 0.0
         self.results = None
 
-    def _remove_offset(self, pre_trigger_percent=10):
+    def _remove_offset(self, pre_trigger_percent=5):
         # a) Encontrar el nivel de base de la curva registrada.
         # 1. Calcular cantidad de muestras de ruido de fondo.
         total_samples = len(self.raw_voltage)
@@ -84,6 +85,61 @@ class LightningImpulseAnalyzer:
 
         return
 
+    def _find_limit_index(self, v_array, threshold, mode="front"):
+        if mode == "front":
+            # Invierte el array para que vaya en sentido decreciente.
+            front_reversed = v_array[::-1]
+
+            # Buscar el primer valor que sea menor que el umbral.
+            idx_reversed = np.argmax(front_reversed < threshold)
+
+            if idx_reversed == 0 and front_reversed[0] >= threshold:
+                 raise ValueError("Error: No se encontraron datos bajo el umbral en el frente.")
+
+            # Convertir el índice invertido al índice original del segmento.
+            idx = (len(v_array) - 1) - idx_reversed
+        elif mode == "tail":
+            idx = np.argmax(v_array < threshold)
+
+            # Validación:
+            if idx == 0 and v_array[0] < threshold:
+                 raise ValueError("Error: El máximo del segmento de datos es menor que el umbral.")
+            elif idx == 0:
+                 raise ValueError("Error: La señal no cae por debajo del umbral en la cola.")
+        else:
+            raise ValueError("Modo desconocido. Use 'front' o 'tail'.")
+
+        return idx
+
+    def _cutting_signal(self):
+        if self.peak_value is None or self.norm_voltage is None:
+            raise ValueError("Error: Falta normalizar la onda.")
+
+        front_data = self.zeroed_curve[:self.idx_peak]
+        tail_data = self.zeroed_curve[self.idx_peak:]
+
+        U_e = self.peak_value
+        threshold_20 = 0.2 * U_e
+        threshold_40 = 0.4 * U_e
+
+        # d) Encontrar la última muestra en el frente inferior a 0,2 * Ue.
+        # 1. Buscar índice del 20% en el frente.
+        idx_20 = self._find_limit_index(front_data, threshold_20, mode="front")
+
+        # 2. Buscar índice del 40% en la cola (retorna índice relativo a tail_data)
+        idx_40_local = self._find_limit_index(tail_data, threshold_40, mode="tail")
+        idx_40 = self.idx_peak + idx_40_local
+
+        # Limites inferior y superior:
+        self.start_slice = idx_20 + 1
+        self.end_slice = idx_40 + 1
+
+        self.fit_voltage = self.zeroed_curve[self.start_slice:self.end_slice]
+        self.fit_voltage_normalized = self.norm_voltage[self.start_slice:self.end_slice]
+        self.fit_time = self.time_axis[self.start_slice:self.end_slice]
+
+        return
+
     @staticmethod
     def _double_exponential_func(t, U, tau1, tau2, td):
         dt = t - td
@@ -113,11 +169,6 @@ class LightningImpulseAnalyzer:
 
         # 2. Ejecutar el ajuste de curva (Levenberg-Marquardt).
         try:
-            # Bounds: Ayuda a que no converja a valores físicos imposibles (ej. tau negativo)
-            # U > 0, tau > 0, td puede ser cualquiera (dentro del rango de tiempo)
-            # A veces no poner bounds ayuda a LM, pero ponerlos fuerza a usar TRF (Trust Region Reflective)
-            # Probar primero sin bounds estrictos o solo positividad simple si falla.
-
             popt, pcov = curve_fit(
                 self._double_exponential_func, 
                 self.fit_time, 
@@ -219,38 +270,13 @@ class LightningImpulseAnalyzer:
         if self.filtered_residual is None:
             raise ValueError("Falta el residual filtrado Rf(t). Ejecutar primero filter_to_residual.")
 
-        self.test_voltage_curve = self.base_curve + self.filtered_residual
-
-        # m (Parcial): Calcular el valor de la tensión de ensayo Ut
-        self.Ut = np.max(self.test_voltage_curve)
+        self.test_voltage_curve_abs = self.base_curve + self.filtered_residual
+        
+        # Devolver signo a la curva:
+        self.Ut = np.max(self.test_voltage_curve_abs) * self.factor
+        self.test_voltage_curve = self.test_voltage_curve_abs * self.factor
 
         return
-
-    def _find_limit_index(self, v_array, threshold, mode="front"):
-        if mode == "front":
-            # Invierte el array para que vaya en sentido decreciente.
-            front_reversed = v_array[::-1]
-
-            # Buscar el primer valor que sea menor que el umbral.
-            idx_reversed = np.argmax(front_reversed < threshold)
-
-            if idx_reversed == 0 and front_reversed[0] >= threshold:
-                 raise ValueError("Error: No se encontraron datos bajo el umbral en el frente.")
-
-            # Convertir el índice invertido al índice original del segmento.
-            idx = (len(v_array) - 1) - idx_reversed
-        elif mode == "tail":
-            idx = np.argmax(v_array < threshold)
-
-            # Validación:
-            if idx == 0 and v_array[0] < threshold:
-                 raise ValueError("Error: El máximo del segmento de datos es menor que el umbral.")
-            elif idx == 0:
-                 raise ValueError("Error: La señal no cae por debajo del umbral en la cola.")
-        else:
-            raise ValueError("Modo desconocido. Use 'front' o 'tail'.")
-
-        return idx
 
     def _linear_interpolation(self, t_array, v_array, idx_low, target_voltage):
         v1 = v_array[idx_low]
@@ -272,48 +298,19 @@ class LightningImpulseAnalyzer:
         # Fórmula: t = t1 + (V_target - V1) * (dt / dV)
         return t1 + (target_voltage - v1) * ((t2 - t1) / (v2 - v1))
 
-    def _cutting_signal(self):
-        if self.peak_value is None or self.norm_voltage is None:
-            raise ValueError("Error: Falta normalizar la onda.")
-
-        front_data = self.zeroed_curve[:self.idx_peak]
-        tail_data = self.zeroed_curve[self.idx_peak:]
-
-        U_e = self.peak_value
-        threshold_20 = 0.2 * U_e
-        threshold_40 = 0.4 * U_e
-
-        # d) Encontrar la última muestra en el frente inferior a 0,2 * Ue.
-        # 1. Buscar índice del 20% en el frente.
-        idx_20 = self._find_limit_index(front_data, threshold_20, mode="front")
-
-        # 2. Buscar índice del 40% en la cola (retorna índice relativo a tail_data)
-        idx_40_local = self._find_limit_index(tail_data, threshold_40, mode="tail")
-        idx_40 = self.idx_peak + idx_40_local
-
-        # Limites inferior y superior:
-        self.start_slice = idx_20 + 1
-        self.end_slice = idx_40 + 1
-
-        self.fit_voltage = self.zeroed_curve[self.start_slice:self.end_slice]
-        self.fit_voltage_normalized = self.norm_voltage[self.start_slice:self.end_slice]
-        self.fit_time = self.time_axis[self.start_slice:self.end_slice]
-
-        return
-
     def _calculate_parameters(self):
-        if self.test_voltage_curve is None:
+        if self.test_voltage_curve_abs is None:
             raise ValueError("Falta la curva de tensión de prueba.")
 
         # m) Calcular el valor de la tensión de ensayo, Ut, y los parámetros de tiempo.
-        Ut = np.max(self.test_voltage_curve)
-        idx_peak_Ut = np.argmax(self.test_voltage_curve)
+        Ut = np.max(self.test_voltage_curve_abs)
+        idx_peak_Ut = np.argmax(self.test_voltage_curve_abs)
 
         # Separamos frente y cola de la curva de prueba.
-        front_v = self.test_voltage_curve[:idx_peak_Ut]
+        front_v = self.test_voltage_curve_abs[:idx_peak_Ut]
         front_t = self.time_axis[:idx_peak_Ut]
 
-        tail_v = self.test_voltage_curve[idx_peak_Ut:]
+        tail_v = self.test_voltage_curve_abs[idx_peak_Ut:]
         tail_t = self.time_axis[idx_peak_Ut:]
 
         # Calcular Tiempo de Frente (T1).
@@ -346,14 +343,11 @@ class LightningImpulseAnalyzer:
         T2 = t50 - O1
 
         # o) Calcular la sobreelevación relativa (Beta').
-        Ue = self.peak_value
-        Ub = self.Ub
-
-        beta_prime = 100 * (Ue - Ub) / Ue
+        beta_prime = 100 * (self.peak_value - self.Ub) / self.peak_value
 
         # Empaquetar resultados:
         self.results = {
-            "Ut": Ut,                   # Voltaje pico de ensayo (kV)
+            "Ut": self.Ut,              # Voltaje pico de ensayo (kV)
             "T1": T1,                   # Tiempo de frente (s)
             "T2": T2,                   # Tiempo de cola (s)
             "O1": O1,                   # Origen virtual (s)

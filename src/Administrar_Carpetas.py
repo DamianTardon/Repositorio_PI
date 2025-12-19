@@ -20,7 +20,7 @@ class FileManager:
         """Crea las carpetas si no existen"""
         for carpeta in [self.raw, self.analysis, self.results]:
             carpeta.mkdir(parents=True, exist_ok=True)
-            print(f"Verificado: {carpeta}")
+            #print(f"Verificado: {carpeta}")
 
     def get_new_name(self, prefijo="medicion", extension=".bin"):
         """Genera una ruta con timestamp para no sobrescribir nunca"""
@@ -41,7 +41,7 @@ class FileManager:
     def create_bin_int16(data, file_path):
         with open(file_path, "wb") as f:
             f.write(data)
-            print(f"Se creó '{file_path}'")
+            #print(f"Se creó '{file_path}'")
 
     # Crear HDF5: para almacenamiento principal y procesamiento.
     @staticmethod
@@ -50,7 +50,7 @@ class FileManager:
         with h5py.File(file_path, "w") as f:
             f.create_dataset("Tiempo [s]", data=time, compression="gzip")
             f.create_dataset("Tensión [V]", data=ch1, compression="gzip")
-        print(f"Se creó '{file_path}'")
+        #print(f"Se creó '{file_path}'")
 
     # Crear CSV: para exportar datos.
     @staticmethod
@@ -128,7 +128,7 @@ class FileManager:
         
         with open(file_path, 'r') as f:
             
-            metadata['sotfware_version'] = f.readline().strip()
+            metadata['software_version'] = f.readline().strip()
             metadata['version_file'] = f.readline().strip()
             metadata['wave_name'] = f.readline().strip()
 

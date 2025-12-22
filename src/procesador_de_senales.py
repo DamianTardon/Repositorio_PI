@@ -36,12 +36,13 @@ class LightningImpulseAnalyzer:
         self.test_voltage_curve = None
         self.Ut = 0.0
         self.results = None
+        self.pre_trigger_percent = 3
 
-    def _remove_offset(self, pre_trigger_percent=5):
+    def _remove_offset(self):
         # a) Encontrar el nivel de base de la curva registrada.
         # 1. Calcular cantidad de muestras de ruido de fondo.
         total_samples = len(self.raw_voltage)
-        n_samples_background = int(total_samples * (pre_trigger_percent / 100))
+        n_samples_background = int(total_samples * (self.pre_trigger_percent / 100))
 
         if n_samples_background < 1:
             raise ValueError("Error: No hay suficientes muestras de pre-trigger para calcular el offset.")
@@ -82,6 +83,11 @@ class LightningImpulseAnalyzer:
 
         # 5. Normalizar la señal.
         self.norm_voltage = self.zeroed_curve / self.peak_value
+        # ---------------------------------------------------------------------------------------------
+        front_data = self.zeroed_curve[:self.idx_peak]
+        idx = self._find_limit_index(front_data, 0, mode="front")
+        self.zeroed_curve[:idx+1] = 0
+        # ---------------------------------------------------------------------------------------------
 
         return
 
@@ -272,6 +278,11 @@ class LightningImpulseAnalyzer:
 
         self.test_voltage_curve_abs = self.base_curve + self.filtered_residual
         
+        # ---------------------------------------------------------------------------------------------
+        idx = self._find_limit_index(self.test_voltage_curve_abs, 0, mode="front")
+        self.test_voltage_curve_abs[:idx+1] = 0
+        # ---------------------------------------------------------------------------------------------
+
         # Devolver signo a la curva:
         self.Ut = np.max(self.test_voltage_curve_abs) * self.factor
         self.test_voltage_curve = self.test_voltage_curve_abs * self.factor

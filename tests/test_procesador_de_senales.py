@@ -80,7 +80,7 @@ def test_T1_value(data_calibration):
 def test_T2_value(data_calibration):
     data, rate = data_calibration
     analyzer = LightningImpulseAnalyzer(data, rate)
-    
+
     analyzer.signal_processing()
     expected_T2 = 60.16
 
@@ -89,11 +89,24 @@ def test_T2_value(data_calibration):
 def test_beta_value(data_calibration):
     data, rate = data_calibration
     analyzer = LightningImpulseAnalyzer(data, rate)
-    
+
     analyzer.signal_processing()
     expected_beta = 0.0
 
     assert analyzer.results['Beta_prime'] == pytest.approx(expected_beta, abs=1.0)
+
+def test_waveform_iec60060_1(data_calibration):
+    data, rate = data_calibration
+    analyzer = LightningImpulseAnalyzer(data, rate)
+    analyzer.signal_processing()
+
+    # Validaciones:
+    expected_T1 = 1.2
+    expected_T2 = 50.0
+
+    assert analyzer.results['T1'] * 1e6 == pytest.approx(expected_T1, rel=0.3)
+    assert analyzer.results['T2'] * 1e6 == pytest.approx(expected_T2, rel=0.2)
+
 
 #---------------------------------------------------------------------------------------------------------------------
 @pytest.fixture

@@ -56,7 +56,7 @@ def plot_offset_compensated_curve(time_axis, offset_compensated_curve):
 def plot_normalized_curve(time_axis, normalized_curve):
     plt.figure(figsize=(12, 3))
     plt.plot(time_axis, normalized_curve)
-    plt.title("Curva Normalizada")
+    plt.title("Curva de Polaridad Normalizada")
     plt.xlabel("Tiempo [s]")
     plt.ylabel("Tensión [V]")
     plt.grid(True)
@@ -88,7 +88,7 @@ def plot_fitting_signal(time_cutted, cutted_signal, fitting_curve):
 
 def plot_base_curve(time_axis, original_signal, base_curve):
     plt.figure(figsize=(12, 3))
-    plt.plot(time_axis, original_signal, label='Curva original')
+    plt.plot(time_axis, original_signal, label='Curva compensada en offset')
     plt.plot(time_axis, base_curve, 'r-', label='Curva Base')
     plt.title("Curva Base")
     plt.xlabel("Tiempo [s]")

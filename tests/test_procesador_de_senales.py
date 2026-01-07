@@ -1,16 +1,92 @@
 import pytest
 from pathlib import Path
-import numpy as np
+#import numpy as np
+import math
 from src.procesador_de_senales import LightningImpulseAnalyzer
+from .test_cases_data import TEST_CASES
 
+BASE_DIR = Path(__file__).resolve().parent.parent / 'src' / 'ArchivosCalibracion'
+
+def load_tdg_wave_file(filename: str):
+    file_path = BASE_DIR / filename
+    metadata = {}
+    data = []
+
+    with open(file_path, 'r') as f:
+        metadata['software_version'] = f.readline().strip()
+        metadata['version_file'] = f.readline().strip()
+        metadata['wave_name'] = f.readline().strip()
+        line_4 = f.readline().strip()
+        resolution_samples_time = line_4.split(',')
+        metadata['resolution'] = resolution_samples_time[0].strip()
+        samples_time = resolution_samples_time[1].strip().split(' samples at ')
+        metadata['samples'] = int(samples_time[0])
+        metadata['interval'] = samples_time[1].strip()
+
+        metadata['rate'] = float(f.readline().strip())
+
+        for line in f:
+            if line.strip():
+                data.append(float(line.strip()))
+                
+    return data, metadata['rate']
+
+@pytest.mark.parametrize("case", TEST_CASES, ids=[c.file_id for c in TEST_CASES])
+def test_calibration_files_iec(case):
+    # 1. Cargar datos:
+    data, rate = load_tdg_wave_file(case.file_id)
+    analyzer = LightningImpulseAnalyzer(data, rate)
+    
+    # 2. Procesar datos:
+    analyzer.signal_processing()
+    
+    # 3. Validar resultados mediante recolección de fallos:
+    res = analyzer.results
+    failures = []
+
+    # Ut
+    if res['Ut'] / 1e3 != pytest.approx(case.expected_peak, rel=case.tolerance_peak/100):
+        failures.append(
+            f"[{case.file_id}] {case.description}\n"
+            f"   -> Peak Error: Esperado {case.expected_peak}, Obtenido {res['Ut']/1e3:.4f}"
+        )
+
+    # T1
+    if not math.isnan(case.expected_T1):
+        if res['T1'] * 1e6 != pytest.approx(case.expected_T1, rel=case.tolerance_T1/100):
+            failures.append(
+                f"[{case.file_id}] {case.description}\n"
+                f"   -> T1 Error: Esperado {case.expected_T1}, Obtenido {res['T1']*1e6:.4f}"
+            )
+
+    # T2
+    if res['T2'] * 1e6 != pytest.approx(case.expected_T2, rel=case.tolerance_T2/100):
+        failures.append(
+            f"[{case.file_id}] {case.description}\n"
+            f"   -> T2 Error: Esperado {case.expected_T2}, Obtenido {res['T2']*1e6:.4f}"
+        )
+
+    # Beta
+    if not math.isnan(case.expected_beta):
+        if res['Beta_prime'] != pytest.approx(case.expected_beta, abs=case.tolerance_beta):
+            failures.append(
+                f"[{case.file_id}] {case.description}\n"
+                f"   -> Beta Error: Esperado {case.expected_beta}, Obtenido {res['Beta_prime']:.4f}"
+            )
+
+    # Reporte de errores completo:
+    assert not failures, "\n".join(failures)
+
+#---------------------------------------------------------------------------------------------------------------------
+"""
 # --- Carga de datos de calibración ---
 
 @pytest.fixture
 def data_calibration():
-    """
-    Extrae los parámetros del archivo generado por el IEC61083-2 Test Data Generator,
-    para generar una onda de impulso.
-    """
+    
+    #Extrae los parámetros del archivo generado por el IEC61083-2 Test Data Generator,
+    #para generar una onda de impulso.
+    
     calibration_file = Path(__file__).resolve().parent.parent / 'src' / 'ArchivosCalibracion' / 'LI-A1.txt'
 
     metadata = {}
@@ -176,80 +252,3 @@ def test_polarity_not_negative(synthetic_wave):
     assert not analyzer.polarity == "Negativa"
     assert not analyzer.factor == -1.0
 """
-def test_cutting_signal(synthetic_wave):
-    signal = [1,2,3,4,5,6,7,8,9,10]
-    rate = 1e6
-    analyzer = LightningImpulseAnalyzer(signal, rate)
-    analyzer._remove_offset()
-    analyzer._normalize_waveform()
-    analyzer._cutting_signal()
-"""
-
-"""
-def test_curve_fit_parameters(synthetic_wave, impulse_params):
-
-    # Verifica si el algoritmo Levenberg-Marquardt recupera las constantes
-    # de tiempo originales (tau1 y tau2).
-
-    analyzer = LightningImpulseAnalyzer(synthetic_wave['voltage'], synthetic_wave['rate'])
-    analyzer.remove_offset()
-    analyzer.normalize_waveform()
-    analyzer.cutting_signal()
-    analyzer.fit_base_curve()
-    
-    params = analyzer.fitted_params
-    
-    # Tolerancia del 5% debido al recorte de señal (cutting_signal)
-    assert params['tau1'] == pytest.approx(impulse_params['tau1'], rel=0.05)
-    assert params['tau2'] == pytest.approx(impulse_params['tau2'], rel=0.05)
-
-def test_noise_robustness(synthetic_wave):
-
-    # Verifica que el cálculo converja incluso con ruido blanco añadido.
-
-    np.random.seed(42)
-    noise = np.random.normal(0, 50, len(synthetic_wave['voltage'])) # Ruido sigma=50V
-    noisy_voltage = synthetic_wave['voltage'] + noise
-    
-    analyzer = LightningImpulseAnalyzer(noisy_voltage, synthetic_wave['rate'])
-    
-    # Ejecutamos pasos manuales para asegurar que no salte excepción en el fit
-    analyzer.remove_offset()
-    analyzer.normalize_waveform()
-    analyzer.cutting_signal()
-    analyzer.fit_base_curve()
-    analyzer.construct_base_curve()
-    analyzer.calculate_residual_curve()
-    analyzer.filter_to_residual()
-    analyzer.construct_test_voltage_curve()
-    res = analyzer.calculate_parameters()
-    
-    # A pesar del ruido, los tiempos T1 y T2 deben mantenerse razonables
-    assert res['T1']*1e6 == pytest.approx(1.2, abs=0.2)
-    assert res['T2']*1e6 == pytest.approx(50.0, abs=3.0)
-
-def test_insufficient_pretrigger():
-
-    # Verifica que lance ValueError si no hay suficientes datos para el offset.
-
-    short_data = np.zeros(10) # Muy pocos datos
-    analyzer = LightningImpulseAnalyzer(short_data, 100e6)
-    
-    with pytest.raises(ValueError, match="No hay suficientes muestras"):
-        analyzer.remove_offset(pre_trigger_percent=50)
-
-def test_signal_too_low():
-
-    # Verifica el error cuando la señal no cumple los umbrales de recorte (ej. señal plana).
-
-    flat_data = np.zeros(1000)
-    analyzer = LightningImpulseAnalyzer(flat_data, 100e6)
-    analyzer.remove_offset()
-    analyzer.normalize_waveform()
-    
-    # Debería fallar en cutting_signal porque nunca cruza el 20% del "pico" (que es 0)
-    # O el argmax devuelve 0.
-    with pytest.raises(ValueError):
-        analyzer.cutting_signal()
-
-    """

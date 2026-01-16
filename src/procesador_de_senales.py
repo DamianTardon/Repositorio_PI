@@ -2,6 +2,7 @@ import numpy as np
 from scipy.optimize import curve_fit
 from scipy import signal
 
+
 class LightningImpulseAnalyzer:
     def __init__(self, voltage_data, sample_rate):
         # Datos de entrada:
@@ -12,7 +13,7 @@ class LightningImpulseAnalyzer:
         self.time_axis = np.arange(len(self.raw_voltage)) * self.sample_rate
 
         # Parámetros calculados:
-        self.pre_trigger_percent = 0.03
+        self.pre_trigger_percent = 0.01
         self.offset_value = 0.0
         self.zeroed_curve = None
         self.zeroed_curve_abs = None
@@ -42,20 +43,34 @@ class LightningImpulseAnalyzer:
         self.results = None
 
     def _remove_offset(self):
-        # a) Encontrar el nivel de base de la curva registrada.
-        # 1. Calcular cantidad de muestras de ruido de fondo.
-        total_samples = len(self.raw_voltage)
-        n_samples_background = int(total_samples * self.pre_trigger_percent)
+        # a) Encontrar el nivel base de la curva registrada.
+        self.idx_peak = np.argmax(np.abs(self.raw_voltage))
+        front = self.raw_voltage[:self.idx_peak]
+        n = int(self.idx_peak * 0.3)
 
-        if n_samples_background < 1:
+        if n < 1:
             raise ValueError("Error: No hay suficientes muestras de pre-trigger para calcular el offset.")
 
-        # 2. Calcular el promedio del ruido (Offset).
-        background_noise = self.raw_voltage[:n_samples_background]
+        pre_trigger = self.raw_voltage[:n]
+        mean = np.mean(pre_trigger)
+        std = np.std(pre_trigger)
+
+        diff = np.abs(front - mean)
+        max_index = np.flatnonzero(diff >= 5 * std)[0]
+
+        diff_2 = np.abs(front[:max_index] - mean)
+        valid_index = np.flatnonzero(diff_2 <= std)
+
+        if valid_index.size > 0:
+            idx = valid_index[-1]
+            background_noise = self.raw_voltage[:idx]
+        else:
+            idx = 0
+            background_noise = self.raw_voltage[0]
+
         self.offset_value = np.mean(background_noise)
 
         # b) Eliminar el offset de la curva registrada.
-        # 1. Restar el offset a toda la señal.
         self.zeroed_curve = self.raw_voltage - self.offset_value
 
         return
@@ -66,7 +81,6 @@ class LightningImpulseAnalyzer:
 
         # c) Encontrar el valor extremo, Ue, de la curva registrada compensada en offset, U0(t).
         # 1. Encontrar el índice del máximo valor absoluto.
-        self.idx_peak = np.argmax(np.abs(self.zeroed_curve))
         self.Ue = self.zeroed_curve[self.idx_peak]
 
         # 2. Determinar la polaridad de la señal.
@@ -87,13 +101,7 @@ class LightningImpulseAnalyzer:
             raise ValueError("Error: Falta calcular el offset de la onda.")
 
         self.norm_voltage = self.zeroed_curve_abs / self.peak_value
-        """
-        # ---------------------------------------------------------------------------------------------
-        front_data = self.zeroed_curve[:self.idx_peak]
-        idx = self._find_limit_index(front_data, 0, mode="front")
-        self.zeroed_curve[:idx+1] = 0
-        # ---------------------------------------------------------------------------------------------
-        """
+
         return
     
     @staticmethod
@@ -285,12 +293,7 @@ class LightningImpulseAnalyzer:
             raise ValueError("Error: Falta calcular la curva residual filtrada Rf(t).")
 
         self.test_voltage_curve_abs = self.base_curve + self.filtered_residual
-        """
-        # ---------------------------------------------------------------------------------------------
-        idx = self._find_limit_index(self.test_voltage_curve_abs, 0, mode="front")
-        self.test_voltage_curve_abs[:idx+1] = 0
-        # ---------------------------------------------------------------------------------------------
-        """
+
         # Devolver signo a la curva:
         self.Ut = np.max(self.test_voltage_curve_abs) * self.factor
         self.test_voltage_curve = self.test_voltage_curve_abs * self.factor

@@ -47,35 +47,34 @@ def test_calibration_files_iec(case):
     # Ut
     if res['Ut'] / 1e3 != pytest.approx(case.expected_peak, rel=case.tolerance_peak/100):
         failures.append(
-            f"[{case.file_id}] {case.description}\n"
-            f"   -> Peak Error: Esperado {case.expected_peak}, Obtenido {res['Ut']/1e3:.4f}"
+            f"-> Peak Error: Esperado {case.expected_peak}, Obtenido {res['Ut']/1e3:.4f}"
         )
 
     # T1
     if not math.isnan(case.expected_T1):
         if res['T1'] * 1e6 != pytest.approx(case.expected_T1, rel=case.tolerance_T1/100):
             failures.append(
-                f"[{case.file_id}] {case.description}\n"
-                f"   -> T1 Error: Esperado {case.expected_T1}, Obtenido {res['T1']*1e6:.4f}"
+                f"-> T1 Error: Esperado {case.expected_T1}, Obtenido {res['T1']*1e6:.4f}"
             )
 
     # T2
     if res['T2'] * 1e6 != pytest.approx(case.expected_T2, rel=case.tolerance_T2/100):
         failures.append(
-            f"[{case.file_id}] {case.description}\n"
-            f"   -> T2 Error: Esperado {case.expected_T2}, Obtenido {res['T2']*1e6:.4f}"
+            f"-> T2 Error: Esperado {case.expected_T2}, Obtenido {res['T2']*1e6:.4f}"
         )
 
     # Beta
     if not math.isnan(case.expected_beta):
         if res['Beta_prime'] != pytest.approx(case.expected_beta, abs=case.tolerance_beta):
             failures.append(
-                f"[{case.file_id}] {case.description}\n"
-                f"   -> Beta Error: Esperado {case.expected_beta}, Obtenido {res['Beta_prime']:.4f}"
+                f"-> Beta Error: Esperado {case.expected_beta}, Obtenido {res['Beta_prime']:.4f}"
             )
 
     # Reporte de errores completo:
-    assert not failures, "\n".join(failures)
+    #assert not failures, "\n".join(failures)
+    if failures:
+        # pytrace=False oculta el código fuente en el error, dejando solo el mensaje.
+        pytest.fail("\n".join(failures), pytrace=False)
 
 #---------------------------------------------------------------------------------------------------------------------
 """

@@ -14,7 +14,7 @@ class FileManager:
         self.results = self.base / "03 Resultados"
         
         # 2. Crear Estructura Automáticamente al iniciar
-        self._create_structure()
+        #self._create_structure()
     
     def _create_structure(self):
         """Crea las carpetas si no existen"""

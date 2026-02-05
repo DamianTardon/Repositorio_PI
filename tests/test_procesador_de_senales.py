@@ -35,7 +35,8 @@ def load_tdg_wave_file(filename: str):
 def test_calibration_files_iec(case):
     # 1. Cargar datos:
     data, rate = load_tdg_wave_file(case.file_id)
-    analyzer = LightningImpulseAnalyzer(data, rate)
+    sigma_fit = 1.0
+    analyzer = LightningImpulseAnalyzer(data, rate, sigma_fit)
     
     # 2. Procesar datos:
     analyzer.signal_processing()

@@ -4,20 +4,21 @@ from scipy import signal
 
 
 class LightningImpulseAnalyzer:
-    def __init__(self, voltage_data, sample_rate):
+    def __init__(self, voltage_data, sample_rate, sigma_fit):
         # Datos de entrada:
         self.raw_voltage = np.array(voltage_data)
         self.sample_rate = sample_rate
+        self.sigma_fit = sigma_fit
 
         # Generar array de tiempo automáticamente: t = index * intervalo
         self.time_axis = np.arange(len(self.raw_voltage)) * self.sample_rate
 
         # Parámetros calculados:
-        self.pre_trigger_percent = 0.01
+        self.idx_peak = None
+        self.time_star_impulse = 0.0
         self.offset_value = 0.0
         self.zeroed_curve = None
         self.zeroed_curve_abs = None
-        self.idx_peak = None
         self.peak_value = 0.0
         self.Ue = 0.0
         self.polarity = None
@@ -68,6 +69,7 @@ class LightningImpulseAnalyzer:
             idx = 0
             background_noise = self.raw_voltage[0]
 
+        self.time_star_impulse = self.time_axis[idx]
         self.offset_value = np.mean(background_noise)
 
         # b) Eliminar el offset de la curva registrada.
@@ -186,9 +188,10 @@ class LightningImpulseAnalyzer:
         p0_td = self.fit_time[0]
         initial_guess = [p0_U, p0_tau1, p0_tau2, p0_td]
 
-        #idx_peak_in_slice = np.argmax(np.abs(self.fit_voltage))
-        #sigma = np.ones_like(self.fit_voltage)
-        #sigma[:idx_peak_in_slice + 5] = 0.5
+        idx_peak_in_slice = np.argmax(np.abs(self.fit_voltage))
+        sigma = np.ones_like(self.fit_voltage)
+        #sigma varía entre 0 y 1. Mientras menor sea sigma, el ajuste en el frente es más preciso.
+        sigma[:idx_peak_in_slice + 5] = self.sigma_fit
 
         # 2. Ejecutar el ajuste de curva (Levenberg-Marquardt).
         try:
@@ -197,9 +200,9 @@ class LightningImpulseAnalyzer:
                 self.fit_time, 
                 self.fit_voltage, 
                 p0 = initial_guess,
-                #sigma = sigma,
-                #absolute_sigma = False,
-                maxfev = 10000
+                sigma = sigma,
+                absolute_sigma = False,
+                maxfev = 100000
             )
 
             self.fitted_params = {

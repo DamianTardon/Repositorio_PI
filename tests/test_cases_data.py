@@ -58,8 +58,10 @@ RAW_DATA_LIC = [
     ("LIC-M1", "Front oscillations, chopped ", 850.0, 1.0, nan, nan, 0.569, 2.0, nan, nan),
     ("LIC-M2", "Front chopped", 0.289, 1.0, nan, nan, 0.514, 2.0, nan, nan),
     ("LIC-M3", "Front chopped", -0.3036, 1.0, nan, nan, 0.568, 2.0, nan, nan),
-    ("LIC-M4", "Tail chopped", 0.1478, 1.0, 1.305, 2.0, 6.00, 2.0, -0.2, 1.0),
-    ("LIC-M5", "Tail chopped", -389.9, 1.0, 0.857, 2.0, 9.24, 2.0, 6.8, 1.0)
+    ("LIC-M4f", "Tail chopped", 0.1478, 1.0, 1.305, 2.0, 6.00, 2.0, -0.2, 1.0),
+    ("LIC-M4c", "Tail chopped", 0.1478, 1.0, 1.305, 2.0, 6.00, 2.0, -0.2, 1.0),
+    ("LIC-M5f", "Tail chopped", -389.9, 1.0, 0.857, 2.0, 9.24, 2.0, 6.8, 1.0),
+    ("LIC-M5c", "Tail chopped", -389.9, 1.0, 0.857, 2.0, 9.24, 2.0, 6.8, 1.0)
 ]
 
 # 3. Generación automática de TEST_CASES

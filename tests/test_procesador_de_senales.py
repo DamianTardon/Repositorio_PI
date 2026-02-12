@@ -5,7 +5,7 @@ import math
 from src.procesador_de_senales import LightningImpulseAnalyzer
 from .test_cases_data import TEST_CASES
 
-BASE_DIR = Path(__file__).resolve().parent.parent / 'src' / 'ArchivosCalibracion'
+BASE_DIR = Path(__file__).resolve().parent.parent / 'Calibracion' / 'IEC61083_2'
 
 def load_tdg_wave_file(filename: str):
     file_path = BASE_DIR / filename

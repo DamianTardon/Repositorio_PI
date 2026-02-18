@@ -3,3 +3,6 @@ Documentacion Python:
 PyVISA:
 https://pyvisa.readthedocs.io/en/latest/
 
+Uso de return:
+https://pylint.readthedocs.io/en/latest/user_guide/messages/refactor/useless-return.html
+

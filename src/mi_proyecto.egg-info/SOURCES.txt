@@ -1,8 +1,8 @@
 README.md
 pyproject.toml
-src/mi_proyecto_osciloscopio.egg-info/PKG-INFO
-src/mi_proyecto_osciloscopio.egg-info/SOURCES.txt
-src/mi_proyecto_osciloscopio.egg-info/dependency_links.txt
-src/mi_proyecto_osciloscopio.egg-info/top_level.txt
+src/mi_proyecto.egg-info/PKG-INFO
+src/mi_proyecto.egg-info/SOURCES.txt
+src/mi_proyecto.egg-info/dependency_links.txt
+src/mi_proyecto.egg-info/top_level.txt
 tests/test_cases_data.py
 tests/test_procesador_de_senales.py

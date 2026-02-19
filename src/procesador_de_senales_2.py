@@ -27,14 +27,14 @@ class LightningImpulseAnalyzer:
 
         # Parámetros calculados:
         self.idx_peak = None
-        self.time_star_impulse = 0.0
-        self.offset_value = 0.0
+        self.time_star_impulse = None
+        self.offset_value = None
         self.zeroed_curve = None
         self.zeroed_curve_abs = None
         self.peak_value = None
-        self.Ue = 0.0
+        self.Ue = None
         self.polarity = None
-        self.factor = 1.0
+        self.factor = None
         self.norm_voltage = None
         self.start_slice = None
         self.end_slice = None
@@ -44,13 +44,13 @@ class LightningImpulseAnalyzer:
         self.fitted_params = None
         self.fitted_curve = None
         self.base_curve = None
-        self.Ub = 0.0
+        self.Ub = None
         self.residual_curve = None
         self.filter_coeffs = None
         self.filtered_residual = None
         self.test_voltage_curve_abs = None
         self.test_voltage_curve = None
-        self.Ut = 0.0
+        self.Ut = None
         self.idx_peak_Ut = None
         self.Tcutting_moment = None
         self.idx_deviation = None

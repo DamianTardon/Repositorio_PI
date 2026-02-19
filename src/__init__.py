@@ -1,4 +1,4 @@
-from GWInstek_GDS1000A_U import *
+from gw_instek_gds1000a_u import *
 #import time
 
 if __name__ == '__main__':

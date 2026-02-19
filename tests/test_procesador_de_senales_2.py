@@ -1,7 +1,7 @@
 import pytest
 from pathlib import Path
 import math
-from src.procesador_de_senales import LightningImpulseAnalyzer
+from procesador_de_senales_2 import LightningImpulseAnalyzer
 from .test_cases_data import TEST_CASES
 
 BASE_DIR = Path(__file__).resolve().parent.parent / 'Calibracion' / 'IEC61083_2'
@@ -38,7 +38,7 @@ def test_calibration_files_iec(case):
     analyzer = LightningImpulseAnalyzer(data, rate, sigma_fit)
     
     # 2. Procesar datos:
-    analyzer.signal_processing()
+    analyzer.full_lightning_impulses()
     
     # 3. Validar resultados mediante recolección de fallos:
     res = analyzer.results

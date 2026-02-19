@@ -141,11 +141,10 @@ class FileManager:
             metadata['samples'] = int(samples_time[0])
             metadata['interval'] = samples_time[1].strip()
 
-            metadata['rate'] = float(f.readline().strip())
+            metadata['sampling_period'] = float(f.readline().strip())
 
             for line in f:
                 if line.strip():
-                    #data.append(int(line.strip()))
                     data.append(float(line.strip()))
 
         return metadata, data

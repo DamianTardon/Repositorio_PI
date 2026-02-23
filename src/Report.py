@@ -11,9 +11,6 @@ def print_information(metadata, data):
     print(f"Tasa de muestreo: {metadata['rate']}")
     print("Datos de la onda:")
     print(f"\nTotal de puntos extraídos: {len(data)}")
-    if False:
-        for d in data:
-            print(d)
 
 def plot_waveform(waveform, dt):
     num_points = len(waveform)
@@ -124,5 +121,26 @@ def plot_test_voltage_curve(time_axis, test_voltage_curve):
     plt.xlabel("Tiempo [s]")
     plt.ylabel("Tensión [V]")
     plt.legend()
+    plt.grid(True)
+    plt.show()
+
+def plot_1_waveform(time_axis1, waveform1, label1, title):
+    plt.figure(figsize=(12, 3))
+    plt.plot(time_axis1, waveform1, label=label1)
+    plt.title(title)
+    plt.legend()
+    plt.xlabel("Tiempo [µs]")
+    plt.ylabel("Tensión [kV]")
+    plt.grid(True)
+    plt.show()
+
+def plot_2_waveform(time_axis1, waveform1, label1, time_axis2, waveform2, label2, title):
+    plt.figure(figsize=(12, 3))
+    plt.plot(time_axis1, waveform1, label=label1)
+    plt.plot(time_axis2, waveform2, color='red',label=label2)
+    plt.title(title)
+    plt.legend()
+    plt.xlabel("Tiempo [µs]")
+    plt.ylabel("Tensión [kV]")
     plt.grid(True)
     plt.show()

@@ -146,7 +146,7 @@ class LightningImpulseAnalyzer:
     def _cutting_signal(self):
         if self.impulse_type == "chopped":
             raise RuntimeError("Este método no aplica a impulsos cortados.")
-        
+
         if self.peak_value is None or self.norm_voltage is None:
             raise ValueError("Error: Falta normalizar la onda.")
 
@@ -375,7 +375,7 @@ class LightningImpulseAnalyzer:
             T2 = self.Tcutting_moment - O1
         else:
             raise ValueError("Tipo de impulso desconocido. Use 'full' o 'chopped'.")
-        
+
         self.results = {
             "Ue": self.Ue,              # Tensión pico original (kV)
             "Ut": self.Ut,              # Tensión pico de ensayo (kV)
@@ -446,7 +446,7 @@ class LightningImpulseAnalyzer:
 
         idx_dev_local = np.argmax(mask_dev)
         self.idx_deviation = ref_analyzer.idx_peak + idx_dev_local
-        
+
     def _select_data_up_to_deviation(self):
         if self.idx_deviation is None:
             raise ValueError("Falta calcular el punto de desviación.")
@@ -536,7 +536,7 @@ class LightningImpulseAnalyzer:
 
         if t_D == t_C:
             raise ValueError("Error: t_C = t_D; no se puede calcular la pendiente de corte.")
-        
+
         slope = (v_D - v_C) / (t_D - t_C)
         self.Tcutting_moment = t_C + (U_collapse - v_C) / slope
         self.U_collapse = U_collapse
@@ -584,3 +584,42 @@ class LightningImpulseAnalyzer:
         self._filter_to_residual()
         self._construct_test_voltage_curve()
         self._calculate_parameters()
+
+# --------------------------------------------------------------------------------------------------------------------------------------------------------
+"""
+    def full_lightning_impulses(self):
+        self.impulse_type = "full"
+        # Ejecutar pipeline completo
+        self._remove_offset()
+        self._polarity_normalization()
+        self._normalize_waveform()
+        #-----------------------------------------------------
+        self._cutting_signal()
+        self._fit_base_curve()
+        self._construct_base_curve()
+        #-----------------------------------------------------
+        self._calculate_residual_curve()
+        self._filter_to_residual()
+        self._construct_test_voltage_curve()
+        self._calculate_parameters()
+
+    def chopped_lightning_impulses(self, ref_analyzer):
+        self.impulse_type = "chopped"
+        # Ejecutar pipeline completo
+        self._remove_offset()
+        self._polarity_normalization()
+        self._normalize_waveform()
+        #-----------------------------------------------------
+        self._find_time_lag(ref_analyzer)
+        self._adjust_time_lag()
+        self._find_deviation_point(ref_analyzer)
+        self._select_data_up_to_deviation()
+        self._find_amplitude_ratio(ref_analyzer)
+        self._scale_base_curve(ref_analyzer)
+        self._find_chopping_instant()
+        #-----------------------------------------------------
+        self._calculate_residual_curve()
+        self._filter_to_residual()
+        self._construct_test_voltage_curve()
+        self._calculate_parameters()
+"""

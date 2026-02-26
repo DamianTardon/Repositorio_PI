@@ -543,43 +543,6 @@ class LightningImpulseAnalyzer:
 
 # --------------------------------------------------------------------------------------------------------------------------------------------------------
 # Métodos de ejecución completa para cada tipo de onda.
-
-    def full_lightning_impulses(self):
-        self.impulse_type = "full"
-        # Ejecutar pipeline completo
-        self._remove_offset()
-        self._polarity_normalization()
-        self._normalize_waveform()
-        #-----------------------------------------------------
-        self._cutting_signal()
-        self._fit_base_curve()
-        self._construct_base_curve()
-        #-----------------------------------------------------
-        self._calculate_residual_curve()
-        self._filter_to_residual()
-        self._construct_test_voltage_curve()
-        self._calculate_parameters()
-
-    def chopped_lightning_impulses(self, ref_analyzer):
-        self.impulse_type = "chopped"
-        # Ejecutar pipeline completo
-        self._remove_offset()
-        self._polarity_normalization()
-        self._normalize_waveform()
-        #-----------------------------------------------------
-        self._find_time_lag(ref_analyzer)
-        self._adjust_time_lag()
-        self._find_deviation_point(ref_analyzer)
-        self._select_data_up_to_deviation()
-        self._find_amplitude_ratio(ref_analyzer)
-        self._scale_base_curve(ref_analyzer)
-        self._find_chopping_instant()
-        #-----------------------------------------------------
-        self._calculate_residual_curve()
-        self._filter_to_residual()
-        self._construct_test_voltage_curve()
-        self._calculate_parameters()
-
     def ref_lightning_impulse(self):
         self.impulse_type = "full"
         # Ejecutar pipeline completo

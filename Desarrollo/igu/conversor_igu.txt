@@ -1,0 +1,3 @@
+Ejecutar en la terminal para convertir la interfaz grafica:
+
+pyside6-uic interfaz.ui -o ui_interfaz.py

@@ -1,7 +1,7 @@
 import pytest
 from pathlib import Path
 import math
-from src.procesador_de_senales_2 import LightningImpulseAnalyzer
+from procesador_de_senales import LightningImpulseAnalyzer
 from .test_cases_data_2 import TEST_CASES_LI, TEST_CASES_LIC
 
 BASE_DIR = Path(__file__).resolve().parent.parent / 'Calibracion' / 'IEC61083_2'

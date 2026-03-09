@@ -33,18 +33,18 @@ import numpy as np
 
 class GWInstekGDS1000AU:
     def __init__(self, resource_name=None):
-        """Inicializa el sistema VISA y opcionalmente conecta a un instrumento."""
-        self.rm = pyvisa.ResourceManager()
+        # Inicializa el sistema VISA y opcionalmente conecta a un instrumento.
         self.dso = None
-        
+        self.rm = pyvisa.ResourceManager('@py')
+
         instrument_list = self.rm.list_resources()
         print("Instrumentos encontrados:", instrument_list)
-        
+
         if resource_name:
             self.connect(resource_name)
 
     def connect(self, resource_name):
-        """Conecta al osciloscopio utilizando el nombre del recurso."""
+        # Conecta al instrumento utilizando el nombre del recurso.
         try:
             self.dso = self.rm.open_resource(resource_name)
             self.dso.read_termination = '\n'
@@ -68,7 +68,7 @@ class GWInstekGDS1000AU:
                 headerlen = 2 + int(chr(inBuffer[1]))
                 pkg_length = int(inBuffer[2:headerlen]) + headerlen
                 pkg_length = pkg_length - length
-                
+
                 while True:
                     if pkg_length == 0:
                         break
@@ -83,7 +83,7 @@ class GWInstekGDS1000AU:
                             print('Error al recibir datos del instrumento!')
                             self.close()
                             sys.exit(0)
-                        
+
                         num = len(buf)
                         inBuffer += buf
                         pkg_length = pkg_length - num
@@ -532,7 +532,7 @@ class GWInstekGDS1000AU:
             self.close()
 
     def close(self):
-        """Cierra la conexión con el instrumento y el gestor de recursos."""
+        # Cierra la conexión con el instrumento y el gestor de recursos.
         if self.dso:
             try:
                 self.dso.close()
@@ -546,29 +546,31 @@ class GWInstekGDS1000AU:
             print("Error al cerrar el gestor de recursos:", e)
 
     def __del__(self):
-        """Asegura que los recursos se liberen cuando el objeto es destruido."""
+        # Asegura que los recursos se liberen cuando el objeto es destruido.
         self.close()
-    
+
     #----------------------------------------------------------------------------------------------
-    def process_channel_scale(value, unit):
+    @staticmethod
+    def process_multipliers(value, unit):
         multipliers = {
             "V": 1.0,        # Volt
             "mV": 1e-3,      # Milivolt
-            "uV": 1e-6       # Microvolt
+            "uV": 1e-6,      # Microvolt
+            "s": 1.0,        # Segundo
+            "ms": 1e-3,      # Milisegundo
+            "us": 1e-6,      # Microsegundo
+            "ns": 1e-9       # Nanosegundo
         }
         
         try:
             numerical_value = float(value)
-            
-            # Buscar el multiplicador correspondiente a la unidad ("mV" -> 1e-3)
-            # En caso de error, .get() por defecto multiplica por 1.0.
             factor = multipliers.get(unit, 1.0)
-            
-            # Calcula valor real.
             scale = numerical_value * factor
             
             print(f"El parámetro final generado es: {scale}")
-            
+            return scale
+
         except ValueError:
             # Por si el usuario dejó el combo_valor en blanco o no es un número
             print("Esperando un número válido en la lista...")
+            return None

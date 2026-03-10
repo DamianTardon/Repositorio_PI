@@ -1,5 +1,5 @@
 import time
-from PySide6.QtCore import QObject, QThread, Signal, Slot, QRegularExpression
+from PySide6.QtCore import QObject, QThread, Signal, Slot, QRegularExpression, QTimer
 from PySide6.QtWidgets import QMessageBox
 from PySide6.QtGui import QRegularExpressionValidator, QIntValidator
 
@@ -94,18 +94,22 @@ class MainController(QObject):
 
         self._setup_ui()
         self._connect_signals()
-
-        # Intentar conexión automática inicial.
-        self.osc.connect(None)
+        if self.osc.dso is not None:
+            # Si el instrumento se conectó con éxito en main.py,
+            # espera que la GUI esté visible.
+            # 100 milisegundos después sincroniza el instrumento con los valores de la GUI.
+            QTimer.singleShot(100, self.synchronize_instrument)
 
     def _setup_ui(self):
-        # 1. Variables continuas (Editables). 
+        # Variables continuas (Editables). 
         self.ui.ch1_offset.setEditable(True)
         self.ui.ch2_offset.setEditable(True)
         self.ui.delay_valor.setEditable(True)
         self.ui.trigger_nivel_valor.setEditable(True)
+        self.ui.habilitador_ch1.setChecked(True)
+        self.ui.habilitador_ch2.setChecked(True)
 
-        # 2. Definir Validadores.
+        # Definir Validadores.
         # Validador Entero positivo.
         validador_enteros = QIntValidator(0, 9999)
 
@@ -117,42 +121,54 @@ class MainController(QObject):
         regla_dec_signo = QRegularExpression(r"^-?[0-9]+(\.[0-9]+)?$")
         validador_dec_signo = QRegularExpressionValidator(regla_dec_signo)
 
-        # 3. Aplicar a Condiciones Ambientales.
+        # Aplicar a Condiciones Ambientales.
         self.ui.entrada_humedad.setValidator(validador_enteros)
         self.ui.entrada_temperatura.setValidator(validador_dec_pos)
         self.ui.entrada_presion.setValidator(validador_dec_pos)
 
-        # 4. Aplicar a Atenuaciones del Sistema (Siempre positivos).
+        # Aplicar a Atenuaciones del Sistema (Siempre positivos).
         self.ui.atenuacion_ch1_divisor_resistivo.setValidator(validador_dec_pos)
         self.ui.atenuacion_ch1_atenuador.setValidator(validador_dec_pos)
         self.ui.atenuacion_ch2_divisor_resistivo.setValidator(validador_dec_pos)
         self.ui.atenuacion_ch2_atenuador.setValidator(validador_dec_pos)
 
-        # 5. Aplicar a los ComboBox Editables (Pueden ser negativos).
+        # Aplicar a los ComboBox Editables (Pueden ser negativos).
         # Ahora esto funciona perfectamente porque ya son editables.
         self.ui.ch1_offset.lineEdit().setValidator(validador_dec_signo)
         self.ui.ch2_offset.lineEdit().setValidator(validador_dec_signo)
         self.ui.delay_valor.lineEdit().setValidator(validador_dec_signo)
         self.ui.trigger_nivel_valor.lineEdit().setValidator(validador_dec_signo)
 
-        # 6. Inicializar las listas desplegables.
-        v_divs = ["2", "5", "10", "20", "50", "100", "200", "500"]
-        v_units = ["mV", "V"]
-        t_divs = ["1", "2.5", "5", "10", "25", "50", "100", "250", "500"]
-        t_units = ["ns", "us", "ms", "s"]
+        # Inicializar las listas desplegables.
+        self.valores_tension = {
+            "mV": ["2", "5", "10", "20", "50", "100", "200", "500"],
+            "V": ["1", "2", "5", "10"]
+        }
+        self.valores_tiempo = {
+            "ns": ["1", "2.5", "5", "10", "25", "50", "100", "250", "500"],
+            "us": ["1", "2.5", "5", "10", "25", "50", "100", "250", "500"],
+            "ms": ["1", "2.5", "5", "10", "25", "50", "100", "250", "500"],
+            "s": ["1", "2.5", "5", "10", "25", "50"]
+        }
 
-        # Escala Vertical.
-        for combo in [self.ui.ch1_tension_valor, self.ui.ch2_tension_valor]:
-            combo.addItems(v_divs)
-        for combo in [self.ui.ch1_tension_unidad, self.ui.ch2_tension_unidad]:
-            combo.addItems(v_units)
+        # Cargar las unidades base
+        self.ui.ch1_tension_unidad.addItems(["mV", "V"])
+        self.ui.ch2_tension_unidad.addItems(["mV", "V"])
+        self.ui.tiempo_unidad.addItems(["ns", "us", "ms", "s"])
 
-        # Escala Horizontal.
-        self.ui.tiempo_valor.addItems(t_divs)
-        self.ui.tiempo_unidad.addItems(t_units)
+        # Poblar los valores por defecto
+        self.ui.ch1_tension_valor.addItems(self.valores_tension["mV"])
+        self.ui.ch2_tension_valor.addItems(self.valores_tension["mV"])
+        self.ui.tiempo_valor.addItems(self.valores_tiempo["ns"])
 
         # Sugerencias iniciales para variables continuas.
-        self.ui.ch1_offset.addItems(["0.0", "1.0", "-1.0"])
+        sugerencias_basicas = ["0.0", "1.0", "-1.0"]
+        sugerencias_delay = ["0.0", "0.0001", "-1.0"]
+        
+        self.ui.ch1_offset.addItems(sugerencias_basicas)
+        self.ui.ch2_offset.addItems(sugerencias_basicas)
+        self.ui.delay_valor.addItems(sugerencias_delay)
+        
         self.ui.trigger_nivel_valor.addItems(["0.0", "0.5", "1.0", "2.0"])
 
         # 7. Estado inicial de habilitadores.
@@ -163,7 +179,7 @@ class MainController(QObject):
 
         # Botones principales.
         self.ui.btn_buscar_instrumento.clicked.connect(self.buscar_instrumento_manual)
-        self.ui.btn_crear_carpeta.clicked.connect(self.crear_nuevo_proyecto)
+        self.ui.btn_crear_carpeta.clicked.connect(self.create_new_proyect)
         self.ui.btn_esperarOnda.clicked.connect(self.iniciar_espera_onda)
         self.ui.btn_capturarOnda.clicked.connect(self.guardar_onda_capturada)
         self.ui.btn_autoajustar.clicked.connect(self.iniciar_autoajuste)
@@ -173,13 +189,14 @@ class MainController(QObject):
 
         # Handlers de Escala Vertical.
         self.ui.ch1_tension_valor.currentTextChanged.connect(lambda v: self._update_v_scale(1, v, self.ui.ch1_tension_unidad.currentText()))
-        self.ui.ch1_tension_unidad.currentTextChanged.connect(lambda u: self._update_v_scale(1, self.ui.ch1_tension_valor.currentText(), u))
+        self.ui.ch1_tension_unidad.currentTextChanged.connect(lambda u: self._change_voltage_unit(1, u))
+        
         self.ui.ch2_tension_valor.currentTextChanged.connect(lambda v: self._update_v_scale(2, v, self.ui.ch2_tension_unidad.currentText()))
-        self.ui.ch2_tension_unidad.currentTextChanged.connect(lambda u: self._update_v_scale(2, self.ui.ch2_tension_valor.currentText(), u))
+        self.ui.ch2_tension_unidad.currentTextChanged.connect(lambda u: self._change_voltage_unit(2, u))
 
         # Handler de Escala Horizontal.
         self.ui.tiempo_valor.currentTextChanged.connect(self._update_t_scale)
-        self.ui.tiempo_unidad.currentTextChanged.connect(self._update_t_scale)
+        self.ui.tiempo_unidad.currentTextChanged.connect(self._change_time_unit)
 
         # Handlers de Variables Continuas.
         self.ui.ch1_offset.lineEdit().editingFinished.connect(lambda: self._update_offset(1, self.ui.ch1_offset.currentText()))
@@ -193,27 +210,60 @@ class MainController(QObject):
 
     # --- Funciones Lógicas ---
 
-    def crear_nuevo_proyecto(self):
+    def create_new_proyect(self):
         item_num = self.ui.entrada_item_numero.text()
         item_anio = self.ui.entrada_item_anio.text()
         cliente = self.ui.entrada_cliente.text()
         nombre_carpeta = f"{item_num}-{item_anio} - {cliente}"
 
-        self.fm.__init__(nombre_carpeta)
+        self.fm.create_new_structure(nombre_carpeta)
 
         # Reiniciar memoria del ensayo.
         self.ref_analyzer = None
         self.onda_count = 0
         self.ui.onda_n_nombre.setText("Proyecto inicializado")
-        QMessageBox.information(None, "Éxito", f"Memoria reiniciada.\nCarpetas creadas para:\n{nombre_carpeta}")
+        QMessageBox.information(None, "Éxito", f"Carpetas creadas para:\n{nombre_carpeta}")
 
     def buscar_instrumento_manual(self):
-        # Llamada libre ya que es iniciada por el usuario.
-        self.osc.connect(None) 
-        if self.osc.dso:
-            QMessageBox.information(None, "Conexión", "Instrumento conectado correctamente.")
+        import pyvisa
+
+        # Comprobar si el objeto existe y está activo.
+        if self.osc.dso is not None:
+            try:
+                self.osc.dso.query('*IDN?')
+                QMessageBox.information(None, "Aviso", "El instrumento ya se encuentra conectado y funcionando correctamente.")
+                return
+            except Exception:
+                # Si falla, limpia la sesión anterior para reconectar.
+                self.osc.close()
+                self.osc.dso = None
+
+        # Reabrir el gestor de recursos si fue cerrado previamente.
+        try:
+            self.osc.rm.list_resources()
+        except Exception:
+            self.osc.rm = pyvisa.ResourceManager('@py')
+
+        # Escanear los puertos de la PC.
+        try:
+            instrumentos_encontrados = self.osc.rm.list_resources()
+        except Exception as e:
+            QMessageBox.critical(None, "Error del Sistema", f"No se pudieron escanear los puertos:\n{e}")
+            return
+
+        # Conectar al primer equipo que encuentre.
+        if instrumentos_encontrados:
+            puerto = instrumentos_encontrados[0]
+            self.osc.connect(puerto)
+
+            # Verificar el estado de la conexión.
+            if self.osc.dso is not None:
+                self.synchronize_instrument()
+                QMessageBox.information(None, "Conexión Exitosa", f"Instrumento enlazado correctamente en el puerto:\n{puerto}")
+            else:
+                QMessageBox.warning(None, "Error de Comunicación", f"Se detectó un dispositivo en {puerto}, pero rechazó la conexión.")
         else:
-            QMessageBox.warning(None, "Error", "No se encontró el instrumento.")
+            QMessageBox.warning(None, "Instrumento no encontrado", "No se detectó hardware conectado a la PC.\nRevise el cable USB y asegúrese de que el osciloscopio esté encendido.")
 
     def iniciar_espera_onda(self):
         if not self.osc.dso:
@@ -416,3 +466,71 @@ class MainController(QObject):
         self.ui.btn_esperarOnda.setText("Iniciar")
         self.ui.btn_autoajustar.setText("Autoajustar")
         QMessageBox.critical(None, "Error de Comunicación", f"Se produjo un error:\n{error_msg}")
+
+    def synchronize_instrument(self):
+        if not self.osc.dso:
+            return
+
+        # Restablecer instrumento a valores de fábrica.
+        self.osc.default_settings()
+        
+        # Tiempo para que procese el reinicio interno.
+        import time
+        time.sleep(1.5) 
+
+        # Escala Vertical y Offset.
+        self._update_v_scale(1, self.ui.ch1_tension_valor.currentText(), self.ui.ch1_tension_unidad.currentText())
+        self._update_offset(1, self.ui.ch1_offset.currentText())
+        
+        self._update_v_scale(2, self.ui.ch2_tension_valor.currentText(), self.ui.ch2_tension_unidad.currentText())
+        self._update_offset(2, self.ui.ch2_offset.currentText())
+
+        # Escala Horizontal y Delay.
+        self._update_t_scale()
+        self._update_delay(self.ui.delay_valor.currentText())
+
+        # Trigger.
+        self._update_trigger_level(self.ui.trigger_nivel_valor.currentText())
+        slope = 0 if self.ui.trigger_f_positivo.isChecked() else 1
+        self.osc.set_trigger_slope(slope)
+
+        # Habilitar/Deshabilitar canales según el estado inicial de la GUI.
+        self.osc.set_channel_display(1, 1 if self.ui.habilitador_ch1.isChecked() else 0)
+        self.osc.set_channel_display(2, 1 if self.ui.habilitador_ch2.isChecked() else 0)
+
+    def _change_voltage_unit(self, canal, unidad):
+        combo_valor = self.ui.ch1_tension_valor if canal == 1 else self.ui.ch2_tension_valor
+        valor_actual = combo_valor.currentText()
+        
+        # Bloquear señales temporalmente mientras vaciamos y llenamos la lista
+        combo_valor.blockSignals(True)
+        combo_valor.clear()
+        
+        opciones_validas = self.valores_tension.get(unidad, ["1"])
+        combo_valor.addItems(opciones_validas)
+        
+        # Si el número que estaba seleccionado existe en la nueva unidad, lo mantenemos.
+        if valor_actual in opciones_validas:
+            combo_valor.setCurrentText(valor_actual)
+            
+        combo_valor.blockSignals(False)
+        
+        # Enviar la nueva configuración final al osciloscopio
+        self._update_v_scale(canal, combo_valor.currentText(), unidad)
+
+    def _change_time_unit(self, unidad):
+        combo_valor = self.ui.tiempo_valor
+        valor_actual = combo_valor.currentText()
+        
+        combo_valor.blockSignals(True)
+        combo_valor.clear()
+        
+        opciones_validas = self.valores_tiempo.get(unidad, ["1"])
+        combo_valor.addItems(opciones_validas)
+        
+        if valor_actual in opciones_validas:
+            combo_valor.setCurrentText(valor_actual)
+            
+        combo_valor.blockSignals(False)
+        
+        self._update_t_scale()

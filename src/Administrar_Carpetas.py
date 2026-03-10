@@ -6,24 +6,31 @@ import numpy as np
 import struct
 
 class FileManager:
-    def __init__(self, project_name="Nro_Item"):
-        # 1. Definir Rutas
+    def __init__(self, project_name="item-año - cliente"):
+        # Definir Rutas
         self.base = Path.cwd() / project_name
         self.raw = self.base / "01 Respaldo"
         self.analysis = self.base / "02 Analisis de datos"
         self.results = self.base / "03 Resultados"
         
-        # 2. Crear Estructura Automáticamente al iniciar
-        #self._create_structure()
+        # Crear Estructura Automáticamente al iniciar
+        self._create_structure()
     
+    def create_new_structure(self, project_name):
+        self.base = Path.cwd() / project_name
+        self.raw = self.base / "01 Respaldo"
+        self.analysis = self.base / "02 Analisis de datos"
+        self.results = self.base / "03 Resultados"
+        self._create_structure()
+
     def _create_structure(self):
-        """Crea las carpetas si no existen"""
+        # Crea las carpetas si no existen.
         for carpeta in [self.raw, self.analysis, self.results]:
             carpeta.mkdir(parents=True, exist_ok=True)
             #print(f"Verificado: {carpeta}")
 
     def get_new_name(self, prefijo="medicion", extension=".bin"):
-        """Genera una ruta con timestamp para no sobrescribir nunca"""
+        # Genera una ruta con timestamp para no sobrescribir nunca.
         timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
         nombre = f"{prefijo}_{timestamp}{extension}"
         

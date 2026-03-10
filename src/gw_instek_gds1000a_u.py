@@ -32,7 +32,7 @@ import pyvisa
 import numpy as np
 
 class GWInstekGDS1000AU:
-    def __init__(self, resource_name=None):
+    def __init__(self):
         # Inicializa el sistema VISA y opcionalmente conecta a un instrumento.
         self.dso = None
         self.rm = pyvisa.ResourceManager('@py')
@@ -40,8 +40,8 @@ class GWInstekGDS1000AU:
         instrument_list = self.rm.list_resources()
         print("Instrumentos encontrados:", instrument_list)
 
-        if resource_name:
-            self.connect(resource_name)
+        if instrument_list:
+            self.connect(instrument_list[0])
 
     def connect(self, resource_name):
         # Conecta al instrumento utilizando el nombre del recurso.
@@ -539,6 +539,8 @@ class GWInstekGDS1000AU:
                 print("Conexión con el instrumento cerrada exitosamente.")
             except Exception as e:
                 print("Error al cerrar la conexión con el instrumento:", e)
+            finally:
+                self.dso = None
         try:
             self.rm.close()
             print("Gestor de recursos cerrado exitosamente.")

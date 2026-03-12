@@ -28,7 +28,7 @@
    </property>
    <layout class="QGridLayout" name="gridLayout_12">
     <item row="1" column="0">
-     <widget class="QFrame" name="bloque_condiciones_ambientales">
+     <widget class="QFrame" name="environmental_conditions_block">
       <property name="minimumSize">
        <size>
         <width>0</width>
@@ -74,12 +74,12 @@
         </spacer>
        </item>
        <item row="2" column="0">
-        <layout class="QGridLayout" name="grilla_condiciones_ambientales">
+        <layout class="QGridLayout" name="environmental_conditions_grid">
          <property name="spacing">
           <number>0</number>
          </property>
          <item row="2" column="0">
-          <widget class="QLabel" name="humedad_relativa">
+          <widget class="QLabel" name="relative_humidity_label">
            <property name="minimumSize">
             <size>
              <width>160</width>
@@ -104,7 +104,7 @@
           </widget>
          </item>
          <item row="0" column="2">
-          <widget class="QLabel" name="temperatura_bs_unidad">
+          <widget class="QLabel" name="db_temperature_unit">
            <property name="minimumSize">
             <size>
              <width>40</width>
@@ -135,7 +135,7 @@
           </widget>
          </item>
          <item row="1" column="2">
-          <widget class="QLabel" name="temperatura_bh_unidad">
+          <widget class="QLabel" name="wb_temperature_unit">
            <property name="minimumSize">
             <size>
              <width>40</width>
@@ -166,7 +166,7 @@
           </widget>
          </item>
          <item row="0" column="0">
-          <widget class="QLabel" name="temperatura_bs">
+          <widget class="QLabel" name="db_temperature_label">
            <property name="minimumSize">
             <size>
              <width>160</width>
@@ -191,7 +191,7 @@
           </widget>
          </item>
          <item row="4" column="0">
-          <widget class="QLabel" name="presion">
+          <widget class="QLabel" name="pressure_label">
            <property name="minimumSize">
             <size>
              <width>160</width>
@@ -216,7 +216,7 @@
           </widget>
          </item>
          <item row="2" column="1">
-          <widget class="QLineEdit" name="humedad_relativa_valor">
+          <widget class="QLineEdit" name="relative_humidity_value">
            <property name="minimumSize">
             <size>
              <width>80</width>
@@ -247,7 +247,7 @@
           </widget>
          </item>
          <item row="2" column="2">
-          <widget class="QLabel" name="humedad_relativa_unidad">
+          <widget class="QLabel" name="relative_humidity_unit">
            <property name="minimumSize">
             <size>
              <width>40</width>
@@ -278,7 +278,7 @@
           </widget>
          </item>
          <item row="3" column="0">
-          <widget class="QLabel" name="humedad_absoluta">
+          <widget class="QLabel" name="absolute_humidity_label">
            <property name="minimumSize">
             <size>
              <width>160</width>
@@ -303,7 +303,7 @@
           </widget>
          </item>
          <item row="4" column="2">
-          <widget class="QLabel" name="presion_unidad">
+          <widget class="QLabel" name="pressure_unit">
            <property name="minimumSize">
             <size>
              <width>40</width>
@@ -334,7 +334,7 @@
           </widget>
          </item>
          <item row="0" column="1">
-          <widget class="QLineEdit" name="temperatura_bs_valor">
+          <widget class="QLineEdit" name="db_temperature_value">
            <property name="minimumSize">
             <size>
              <width>80</width>
@@ -368,7 +368,7 @@
           </widget>
          </item>
          <item row="1" column="0">
-          <widget class="QLabel" name="temperatura_bh">
+          <widget class="QLabel" name="wb_temperature_label">
            <property name="minimumSize">
             <size>
              <width>160</width>
@@ -393,7 +393,7 @@
           </widget>
          </item>
          <item row="1" column="1">
-          <widget class="QLineEdit" name="temperatura_bh_valor">
+          <widget class="QLineEdit" name="wb_temperature_value">
            <property name="minimumSize">
             <size>
              <width>80</width>
@@ -427,7 +427,7 @@
           </widget>
          </item>
          <item row="4" column="1">
-          <widget class="QLineEdit" name="presion_valor">
+          <widget class="QLineEdit" name="pressure_value">
            <property name="minimumSize">
             <size>
              <width>80</width>
@@ -458,7 +458,7 @@
           </widget>
          </item>
          <item row="3" column="1">
-          <widget class="QLineEdit" name="humedad_absoluta_valor">
+          <widget class="QLineEdit" name="absolute_humidity_value">
            <property name="minimumSize">
             <size>
              <width>80</width>
@@ -489,7 +489,7 @@
           </widget>
          </item>
          <item row="3" column="2">
-          <widget class="QLabel" name="humedad_absoluta_unidad">
+          <widget class="QLabel" name="absolute_humidity_unit">
            <property name="minimumSize">
             <size>
              <width>45</width>
@@ -522,7 +522,7 @@
         </layout>
        </item>
        <item row="1" column="0">
-        <widget class="QLabel" name="condiciones_ambientales">
+        <widget class="QLabel" name="environmental_conditions_label">
          <property name="minimumSize">
           <size>
            <width>210</width>
@@ -551,7 +551,7 @@
      </widget>
     </item>
     <item row="9" column="0" colspan="2">
-     <widget class="QFrame" name="bloque_configuraciones_osciloscopio">
+     <widget class="QFrame" name="oscilloscope_configurations_block">
       <property name="minimumSize">
        <size>
         <width>0</width>
@@ -584,7 +584,7 @@
         <number>0</number>
        </property>
        <item row="0" column="0">
-        <widget class="QLabel" name="configuraciones_osciloscopio">
+        <widget class="QLabel" name="oscilloscope_configurations_label">
          <property name="minimumSize">
           <size>
            <width>270</width>
@@ -610,7 +610,7 @@
         </widget>
        </item>
        <item row="0" column="3">
-        <widget class="QPushButton" name="btn_buscar_instrumento">
+        <widget class="QPushButton" name="btn_search_instrument">
          <property name="minimumSize">
           <size>
            <width>180</width>
@@ -642,7 +642,7 @@
           <number>0</number>
          </property>
          <item row="3" column="1">
-          <widget class="QLabel" name="ch2_tension">
+          <widget class="QLabel" name="ch2_voltage_label">
            <property name="minimumSize">
             <size>
              <width>40</width>
@@ -667,7 +667,7 @@
           </widget>
          </item>
          <item row="3" column="2">
-          <widget class="QComboBox" name="ch2_tension_valor">
+          <widget class="QComboBox" name="ch2_voltage_value">
            <property name="minimumSize">
             <size>
              <width>60</width>
@@ -691,7 +691,7 @@
           </widget>
          </item>
          <item row="0" column="0" colspan="7">
-          <widget class="QLabel" name="escala_vertical">
+          <widget class="QLabel" name="vertical_scale_label">
            <property name="minimumSize">
             <size>
              <width>120</width>
@@ -717,7 +717,7 @@
           </widget>
          </item>
          <item row="3" column="5">
-          <widget class="QLineEdit" name="ch2_offset_valor">
+          <widget class="QLineEdit" name="ch2_offset_value">
            <property name="enabled">
             <bool>true</bool>
            </property>
@@ -748,7 +748,7 @@
           </widget>
          </item>
          <item row="2" column="2">
-          <widget class="QComboBox" name="ch1_tension_valor">
+          <widget class="QComboBox" name="ch1_voltage_value">
            <property name="minimumSize">
             <size>
              <width>60</width>
@@ -772,7 +772,7 @@
           </widget>
          </item>
          <item row="3" column="3">
-          <widget class="QComboBox" name="ch2_tension_unidad">
+          <widget class="QComboBox" name="ch2_voltage_unit">
            <property name="minimumSize">
             <size>
              <width>60</width>
@@ -797,7 +797,7 @@
           </widget>
          </item>
          <item row="1" column="5" colspan="2">
-          <widget class="QLabel" name="offset">
+          <widget class="QLabel" name="offset_label">
            <property name="minimumSize">
             <size>
              <width>70</width>
@@ -823,7 +823,7 @@
           </widget>
          </item>
          <item row="3" column="0">
-          <widget class="QCheckBox" name="ch2_habilitador">
+          <widget class="QCheckBox" name="ch2_enabler">
            <property name="enabled">
             <bool>true</bool>
            </property>
@@ -863,7 +863,7 @@
           </widget>
          </item>
          <item row="2" column="5">
-          <widget class="QLineEdit" name="ch1_offset_valor">
+          <widget class="QLineEdit" name="ch1_offset_value">
            <property name="enabled">
             <bool>true</bool>
            </property>
@@ -894,7 +894,7 @@
           </widget>
          </item>
          <item row="1" column="2" colspan="2">
-          <widget class="QLabel" name="amplitud_div">
+          <widget class="QLabel" name="amplitude_div_label">
            <property name="minimumSize">
             <size>
              <width>87</width>
@@ -920,7 +920,7 @@
           </widget>
          </item>
          <item row="3" column="6">
-          <widget class="QComboBox" name="ch2_offset_unidad">
+          <widget class="QComboBox" name="ch2_offset_unit">
            <property name="minimumSize">
             <size>
              <width>60</width>
@@ -945,7 +945,7 @@
           </widget>
          </item>
          <item row="2" column="0">
-          <widget class="QCheckBox" name="ch1_habilitador">
+          <widget class="QCheckBox" name="ch1_enabler">
            <property name="enabled">
             <bool>true</bool>
            </property>
@@ -985,7 +985,7 @@
           </widget>
          </item>
          <item row="2" column="3">
-          <widget class="QComboBox" name="ch1_tension_unidad">
+          <widget class="QComboBox" name="ch1_voltage_unit">
            <property name="minimumSize">
             <size>
              <width>60</width>
@@ -1009,7 +1009,7 @@
           </widget>
          </item>
          <item row="2" column="6">
-          <widget class="QComboBox" name="ch1_offset_unidad">
+          <widget class="QComboBox" name="ch1_offset_unit">
            <property name="minimumSize">
             <size>
              <width>60</width>
@@ -1033,7 +1033,7 @@
           </widget>
          </item>
          <item row="2" column="1">
-          <widget class="QLabel" name="ch1_tension">
+          <widget class="QLabel" name="ch1_voltage_label">
            <property name="minimumSize">
             <size>
              <width>40</width>
@@ -1085,7 +1085,7 @@
           <number>0</number>
          </property>
          <item row="0" column="0" colspan="5">
-          <widget class="QLabel" name="escala_horizontal">
+          <widget class="QLabel" name="horizontal_scale_label">
            <property name="minimumSize">
             <size>
              <width>240</width>
@@ -1111,7 +1111,7 @@
           </widget>
          </item>
          <item row="1" column="0" colspan="2">
-          <widget class="QLabel" name="tiempo_div">
+          <widget class="QLabel" name="time_div_label">
            <property name="minimumSize">
             <size>
              <width>120</width>
@@ -1137,7 +1137,7 @@
           </widget>
          </item>
          <item row="2" column="3">
-          <widget class="QLineEdit" name="delay_valor">
+          <widget class="QLineEdit" name="delay_value">
            <property name="enabled">
             <bool>true</bool>
            </property>
@@ -1181,7 +1181,7 @@
           </spacer>
          </item>
          <item row="2" column="0">
-          <widget class="QComboBox" name="tiempo_valor">
+          <widget class="QComboBox" name="time_value">
            <property name="minimumSize">
             <size>
              <width>60</width>
@@ -1206,7 +1206,7 @@
           </widget>
          </item>
          <item row="2" column="1">
-          <widget class="QComboBox" name="tiempo_unidad">
+          <widget class="QComboBox" name="time_unit">
            <property name="minimumSize">
             <size>
              <width>60</width>
@@ -1231,7 +1231,7 @@
           </widget>
          </item>
          <item row="1" column="3" colspan="2">
-          <widget class="QLabel" name="delay">
+          <widget class="QLabel" name="delay_label">
            <property name="minimumSize">
             <size>
              <width>120</width>
@@ -1257,7 +1257,7 @@
           </widget>
          </item>
          <item row="2" column="4">
-          <widget class="QComboBox" name="delay_unidad">
+          <widget class="QComboBox" name="delay_unit">
            <property name="minimumSize">
             <size>
              <width>60</width>
@@ -1308,7 +1308,7 @@
           <number>0</number>
          </property>
          <item row="2" column="0">
-          <widget class="QRadioButton" name="trigger_f_positivo">
+          <widget class="QRadioButton" name="trigger_edge_positive">
            <property name="minimumSize">
             <size>
              <width>90</width>
@@ -1336,7 +1336,7 @@
           </widget>
          </item>
          <item row="2" column="1">
-          <widget class="QLineEdit" name="trigger_nivel_valor">
+          <widget class="QLineEdit" name="trigger_level_value">
            <property name="enabled">
             <bool>true</bool>
            </property>
@@ -1367,7 +1367,7 @@
           </widget>
          </item>
          <item row="0" column="0" colspan="3">
-          <widget class="QLabel" name="trigger">
+          <widget class="QLabel" name="trigger_label">
            <property name="minimumSize">
             <size>
              <width>210</width>
@@ -1393,7 +1393,7 @@
           </widget>
          </item>
          <item row="3" column="0">
-          <widget class="QRadioButton" name="trigger_f_negativo">
+          <widget class="QRadioButton" name="trigger_edge_negative">
            <property name="minimumSize">
             <size>
              <width>90</width>
@@ -1418,7 +1418,7 @@
           </widget>
          </item>
          <item row="1" column="1" colspan="2">
-          <widget class="QLabel" name="trigger_nivel">
+          <widget class="QLabel" name="trigger_level_label">
            <property name="minimumSize">
             <size>
              <width>120</width>
@@ -1444,7 +1444,7 @@
           </widget>
          </item>
          <item row="2" column="2">
-          <widget class="QComboBox" name="trigger_nivel_unidad">
+          <widget class="QComboBox" name="trigger_level_unit">
            <property name="minimumSize">
             <size>
              <width>60</width>
@@ -1468,7 +1468,7 @@
           </widget>
          </item>
          <item row="1" column="0">
-          <widget class="QLabel" name="trigger_flanco">
+          <widget class="QLabel" name="trigger_edge">
            <property name="minimumSize">
             <size>
              <width>90</width>
@@ -1499,7 +1499,7 @@
      </widget>
     </item>
     <item row="0" column="1" rowspan="9" colspan="4">
-     <widget class="QFrame" name="bloque_grafico_impulso">
+     <widget class="QFrame" name="impulse_graph_block">
       <property name="minimumSize">
        <size>
         <width>651</width>
@@ -1517,7 +1517,7 @@
       </property>
       <layout class="QGridLayout" name="gridLayout_11">
        <item row="0" column="6">
-        <widget class="QRadioButton" name="tipo_normalizado">
+        <widget class="QRadioButton" name="normalized_type_radio">
          <property name="minimumSize">
           <size>
            <width>110</width>
@@ -1545,7 +1545,7 @@
         </widget>
        </item>
        <item row="0" column="4">
-        <widget class="QLabel" name="tipo_grafico">
+        <widget class="QLabel" name="graph_type_label">
          <property name="minimumSize">
           <size>
            <width>120</width>
@@ -1571,7 +1571,7 @@
         </widget>
        </item>
        <item row="0" column="1">
-        <widget class="QLineEdit" name="grafico_nombre">
+        <widget class="QLineEdit" name="graph_name">
          <property name="enabled">
           <bool>false</bool>
          </property>
@@ -1599,7 +1599,7 @@
         </widget>
        </item>
        <item row="1" column="0" colspan="7">
-        <widget class="PlotWidget" name="grafico_vista">
+        <widget class="PlotWidget" name="graph_view">
          <property name="minimumSize">
           <size>
            <width>631</width>
@@ -1612,7 +1612,7 @@
         </widget>
        </item>
        <item row="0" column="0">
-        <widget class="QLabel" name="grafico_de_onda">
+        <widget class="QLabel" name="waveform_graph_label">
          <property name="minimumSize">
           <size>
            <width>160</width>
@@ -1638,7 +1638,7 @@
         </widget>
        </item>
        <item row="0" column="5">
-        <widget class="QRadioButton" name="tipo_real">
+        <widget class="QRadioButton" name="real_type_radio">
          <property name="minimumSize">
           <size>
            <width>60</width>
@@ -1679,7 +1679,7 @@
      </widget>
     </item>
     <item row="9" column="4">
-     <widget class="QFrame" name="bloque_resultados_del_ensayo">
+     <widget class="QFrame" name="test_results_block">
       <property name="minimumSize">
        <size>
         <width>0</width>
@@ -1715,7 +1715,7 @@ QLineEdit:{
         <number>0</number>
        </property>
        <item row="0" column="0">
-        <widget class="QLabel" name="resultados_del_ensayo">
+        <widget class="QLabel" name="test_results_label">
          <property name="minimumSize">
           <size>
            <width>180</width>
@@ -1741,12 +1741,12 @@ QLineEdit:{
         </widget>
        </item>
        <item row="1" column="0">
-        <layout class="QGridLayout" name="grilla_resultados_del_ensayo">
+        <layout class="QGridLayout" name="test_results_grid">
          <property name="spacing">
           <number>0</number>
          </property>
          <item row="2" column="0">
-          <widget class="QLabel" name="t2_etiqueta">
+          <widget class="QLabel" name="t2_label">
            <property name="minimumSize">
             <size>
              <width>40</width>
@@ -1771,7 +1771,7 @@ QLineEdit:{
           </widget>
          </item>
          <item row="2" column="2">
-          <widget class="QLabel" name="t2_unidad">
+          <widget class="QLabel" name="t2_unit">
            <property name="minimumSize">
             <size>
              <width>30</width>
@@ -1799,7 +1799,7 @@ QLineEdit:{
           </widget>
          </item>
          <item row="0" column="1">
-          <widget class="QLineEdit" name="v_valor">
+          <widget class="QLineEdit" name="peak_voltage_value">
            <property name="minimumSize">
             <size>
              <width>80</width>
@@ -1827,7 +1827,7 @@ QLineEdit:{
           </widget>
          </item>
          <item row="3" column="0">
-          <widget class="QLabel" name="os_etiqueta">
+          <widget class="QLabel" name="os_label">
            <property name="minimumSize">
             <size>
              <width>40</width>
@@ -1852,7 +1852,7 @@ QLineEdit:{
           </widget>
          </item>
          <item row="2" column="1">
-          <widget class="QLineEdit" name="t2_valor">
+          <widget class="QLineEdit" name="t2_value">
            <property name="minimumSize">
             <size>
              <width>80</width>
@@ -1880,7 +1880,7 @@ QLineEdit:{
           </widget>
          </item>
          <item row="0" column="0">
-          <widget class="QLabel" name="v_etiqueta">
+          <widget class="QLabel" name="peak_voltage_label">
            <property name="enabled">
             <bool>true</bool>
            </property>
@@ -1908,7 +1908,7 @@ QLineEdit:{
           </widget>
          </item>
          <item row="3" column="1">
-          <widget class="QLineEdit" name="os_valor">
+          <widget class="QLineEdit" name="os_value">
            <property name="minimumSize">
             <size>
              <width>80</width>
@@ -1936,7 +1936,7 @@ QLineEdit:{
           </widget>
          </item>
          <item row="1" column="1">
-          <widget class="QLineEdit" name="t1_valor">
+          <widget class="QLineEdit" name="t1_value">
            <property name="minimumSize">
             <size>
              <width>80</width>
@@ -1964,7 +1964,7 @@ QLineEdit:{
           </widget>
          </item>
          <item row="1" column="0">
-          <widget class="QLabel" name="t1_etiqueta">
+          <widget class="QLabel" name="t1_label">
            <property name="minimumSize">
             <size>
              <width>40</width>
@@ -1989,7 +1989,7 @@ QLineEdit:{
           </widget>
          </item>
          <item row="3" column="2">
-          <widget class="QLabel" name="os_unidad">
+          <widget class="QLabel" name="os_unit">
            <property name="minimumSize">
             <size>
              <width>30</width>
@@ -2017,7 +2017,7 @@ QLineEdit:{
           </widget>
          </item>
          <item row="0" column="2">
-          <widget class="QLabel" name="v_unidad">
+          <widget class="QLabel" name="peak_voltage_unit">
            <property name="minimumSize">
             <size>
              <width>30</width>
@@ -2045,7 +2045,7 @@ QLineEdit:{
           </widget>
          </item>
          <item row="1" column="2">
-          <widget class="QLabel" name="t1_unidad">
+          <widget class="QLabel" name="t1_unit">
            <property name="minimumSize">
             <size>
              <width>30</width>
@@ -2104,7 +2104,7 @@ QLineEdit:{
      </spacer>
     </item>
     <item row="9" column="3">
-     <widget class="QFrame" name="bloque_ensayo">
+     <widget class="QFrame" name="test_block">
       <property name="minimumSize">
        <size>
         <width>0</width>
@@ -2137,7 +2137,7 @@ QLineEdit:{
         <number>0</number>
        </property>
        <item row="0" column="0">
-        <widget class="QLabel" name="ensayo">
+        <widget class="QLabel" name="test_label">
          <property name="minimumSize">
           <size>
            <width>100</width>
@@ -2163,7 +2163,7 @@ QLineEdit:{
         </widget>
        </item>
        <item row="2" column="0">
-        <widget class="QPushButton" name="btn_esperar_onda">
+        <widget class="QPushButton" name="btn_wait_waveform">
          <property name="minimumSize">
           <size>
            <width>90</width>
@@ -2190,7 +2190,7 @@ QLineEdit:{
         </widget>
        </item>
        <item row="3" column="0">
-        <widget class="QPushButton" name="btn_guardar_onda">
+        <widget class="QPushButton" name="btn_save_waveform">
          <property name="minimumSize">
           <size>
            <width>90</width>
@@ -2233,7 +2233,7 @@ QLineEdit:{
      </widget>
     </item>
     <item row="3" column="0">
-     <widget class="QFrame" name="atenuaciones_sistema">
+     <widget class="QFrame" name="system_attenuations_block">
       <property name="minimumSize">
        <size>
         <width>0</width>
@@ -2266,7 +2266,7 @@ QLineEdit:{
         <number>0</number>
        </property>
        <item row="0" column="0">
-        <widget class="QLabel" name="atenuacion_sistema">
+        <widget class="QLabel" name="system_attenuations_label">
          <property name="minimumSize">
           <size>
            <width>210</width>
@@ -2292,12 +2292,12 @@ QLineEdit:{
         </widget>
        </item>
        <item row="1" column="0">
-        <layout class="QGridLayout" name="grilla_atenuacion_sistema">
+        <layout class="QGridLayout" name="system_attenuation_grid">
          <property name="spacing">
           <number>0</number>
          </property>
          <item row="0" column="0">
-          <widget class="QCheckBox" name="habilitador_atenuaciones">
+          <widget class="QCheckBox" name="attenuations_enabler">
            <property name="enabled">
             <bool>true</bool>
            </property>
@@ -2337,7 +2337,7 @@ QLineEdit:{
           </widget>
          </item>
          <item row="0" column="3">
-          <widget class="QLabel" name="ch1_atenuacion">
+          <widget class="QLabel" name="ch1_attenuation_label">
            <property name="minimumSize">
             <size>
              <width>45</width>
@@ -2371,7 +2371,7 @@ QLineEdit:{
           </widget>
          </item>
          <item row="1" column="3">
-          <widget class="QLineEdit" name="ch1_divisor_resistivo_valor">
+          <widget class="QLineEdit" name="ch1_resistive_divider_value">
            <property name="enabled">
             <bool>true</bool>
            </property>
@@ -2402,7 +2402,7 @@ QLineEdit:{
           </widget>
          </item>
          <item row="1" column="0">
-          <widget class="QLabel" name="divisor_resistivo">
+          <widget class="QLabel" name="resistive_divider_label">
            <property name="minimumSize">
             <size>
              <width>130</width>
@@ -2427,7 +2427,7 @@ QLineEdit:{
           </widget>
          </item>
          <item row="2" column="4">
-          <widget class="QLineEdit" name="ch2_atenuador_valor">
+          <widget class="QLineEdit" name="ch2_attenuator_value">
            <property name="enabled">
             <bool>true</bool>
            </property>
@@ -2458,7 +2458,7 @@ QLineEdit:{
           </widget>
          </item>
          <item row="2" column="0">
-          <widget class="QLabel" name="atenuador">
+          <widget class="QLabel" name="attenuator_label">
            <property name="minimumSize">
             <size>
              <width>130</width>
@@ -2483,7 +2483,7 @@ QLineEdit:{
           </widget>
          </item>
          <item row="1" column="4">
-          <widget class="QLineEdit" name="ch2_divisor_resistivo_valor">
+          <widget class="QLineEdit" name="ch2_resistive_divider_value">
            <property name="enabled">
             <bool>true</bool>
            </property>
@@ -2514,7 +2514,7 @@ QLineEdit:{
           </widget>
          </item>
          <item row="2" column="3">
-          <widget class="QLineEdit" name="ch1_atenuador_valor">
+          <widget class="QLineEdit" name="ch1_attenuator_value">
            <property name="enabled">
             <bool>true</bool>
            </property>
@@ -2545,7 +2545,7 @@ QLineEdit:{
           </widget>
          </item>
          <item row="0" column="4">
-          <widget class="QLabel" name="ch2_atenuacion">
+          <widget class="QLabel" name="ch2_attenuation_label">
            <property name="minimumSize">
             <size>
              <width>45</width>
@@ -2597,7 +2597,7 @@ QLineEdit:{
      </widget>
     </item>
     <item row="0" column="0">
-     <widget class="QFrame" name="bloque_datos_del_ensayo">
+     <widget class="QFrame" name="test_data_block">
       <property name="minimumSize">
        <size>
         <width>0</width>
@@ -2631,7 +2631,7 @@ QLineEdit:{
       </property>
       <layout class="QGridLayout" name="gridLayout">
        <item row="0" column="0">
-        <widget class="QLabel" name="datos_del_ensayo">
+        <widget class="QLabel" name="test_data_label">
          <property name="minimumSize">
           <size>
            <width>150</width>
@@ -2657,12 +2657,12 @@ QLineEdit:{
         </widget>
        </item>
        <item row="1" column="0" colspan="2">
-        <layout class="QGridLayout" name="grilla_datos_del_ensayo">
+        <layout class="QGridLayout" name="test_data_grid">
          <property name="spacing">
           <number>0</number>
          </property>
          <item row="2" column="0">
-          <widget class="QLabel" name="cliente">
+          <widget class="QLabel" name="client_label">
            <property name="minimumSize">
             <size>
              <width>70</width>
@@ -2687,7 +2687,7 @@ QLineEdit:{
           </widget>
          </item>
          <item row="1" column="1">
-          <widget class="QLineEdit" name="item_numero_valor">
+          <widget class="QLineEdit" name="item_number_value">
            <property name="minimumSize">
             <size>
              <width>130</width>
@@ -2718,7 +2718,7 @@ QLineEdit:{
           </widget>
          </item>
          <item row="0" column="0">
-          <widget class="QLabel" name="fecha">
+          <widget class="QLabel" name="date_label">
            <property name="minimumSize">
             <size>
              <width>70</width>
@@ -2743,7 +2743,7 @@ QLineEdit:{
           </widget>
          </item>
          <item row="0" column="1" colspan="3">
-          <widget class="QDateEdit" name="calendario">
+          <widget class="QDateEdit" name="date_value">
            <property name="minimumSize">
             <size>
              <width>200</width>
@@ -2784,7 +2784,7 @@ QLineEdit:{
           </widget>
          </item>
          <item row="2" column="1" colspan="3">
-          <widget class="QLineEdit" name="cliente_valor">
+          <widget class="QLineEdit" name="client_value">
            <property name="minimumSize">
             <size>
              <width>200</width>
@@ -2815,7 +2815,7 @@ QLineEdit:{
           </widget>
          </item>
          <item row="1" column="3">
-          <widget class="QLineEdit" name="item_anio_valor">
+          <widget class="QLineEdit" name="item_year_value">
            <property name="minimumSize">
             <size>
              <width>50</width>
@@ -2849,7 +2849,7 @@ QLineEdit:{
           </widget>
          </item>
          <item row="1" column="0">
-          <widget class="QLabel" name="item">
+          <widget class="QLabel" name="item_label">
            <property name="minimumSize">
             <size>
              <width>70</width>
@@ -2874,7 +2874,7 @@ QLineEdit:{
           </widget>
          </item>
          <item row="1" column="2">
-          <widget class="QLineEdit" name="item_guion">
+          <widget class="QLineEdit" name="item_dash">
            <property name="enabled">
             <bool>true</bool>
            </property>
@@ -2923,7 +2923,7 @@ QLineEdit:{
         </spacer>
        </item>
        <item row="0" column="1">
-        <widget class="QPushButton" name="btn_crear_carpeta">
+        <widget class="QPushButton" name="btn_create_folder">
          <property name="minimumSize">
           <size>
            <width>110</width>

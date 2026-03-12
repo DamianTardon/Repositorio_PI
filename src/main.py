@@ -6,8 +6,8 @@ from PySide6.QtCore import QFile
 import pyqtgraph as pg
 
 # Liberías de este proyecto
-from administrar_carpetas import FileManager
-from procesador_de_senales import LightningImpulseAnalyzer
+from file_manager import FileManager
+from impulse_analyzer import LightningImpulseAnalyzer
 from gw_instek_gds1000a_u import GWInstekGDS1000AU
 from controller import MainController
 
@@ -15,22 +15,22 @@ if __name__ == "__main__":
     app = QApplication(sys.argv)
 
     # Cargar la interfaz
-    directorio_actual = os.path.dirname(os.path.abspath(__file__))
-    ruta_ui = os.path.join(directorio_actual, "graphic_user_interface.ui")
+    current_directory = os.path.dirname(os.path.abspath(__file__))
+    ruta_ui = os.path.join(current_directory, "graphic_user_interface.ui")
     ui_file = QFile(ruta_ui)
     ui_file.open(QFile.ReadOnly)
     loader = QUiLoader()
     loader.registerCustomWidget(pg.PlotWidget)
-    ventana = loader.load(ui_file)
+    window = loader.load(ui_file)
     ui_file.close()
 
     # Instanciar los componentes del backend.
     oscilloscope = GWInstekGDS1000AU()
     file_system = FileManager()
 
-    # Iniciar el Controlador (Une la Vista con el Modelo).
-    app_controller = MainController(ventana, oscilloscope, file_system, LightningImpulseAnalyzer)
+    # Iniciar el Controlador (Vista - Modelo).
+    app_controller = MainController(window, oscilloscope, file_system, LightningImpulseAnalyzer)
 
-    # 5. Mostrar y ejecutar
-    ventana.show()
+    # Mostrar y ejecutar.
+    window.show()
     sys.exit(app.exec())

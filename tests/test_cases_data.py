@@ -1,8 +1,5 @@
 from typing import NamedTuple
-#import pytest
-#import math
 
-# 1. Definición de la estructura
 class ImpulseCase(NamedTuple):
     file_id: str
     description: str
@@ -15,9 +12,7 @@ class ImpulseCase(NamedTuple):
     expected_beta: float
     tolerance_beta: float
 
-# 2. Datos Crudos (Raw Data) - IEC 61083-2
 # TABLA A.1 (Full Lightning Impulse)
-# (ID, Descripcion, Ut, Ut%, T1, T1%, T2, T2%, Beta, Beta%)
 RAW_DATA_LI = [
     ("LI-A1", "Superposition of two ideal exponential functions", 1049.60, 0.10, 0.840, 2.0, 60.16, 1.0, 0.0, 1.0),
     ("LI-A2", "Slow oscillations", 1037.60, 0.10, 1.693, 2.0, 47.48, 1.0, 5.1, 1.0),
@@ -51,49 +46,16 @@ RAW_DATA_LI = [
 ]
 
 # TABLA A.2 (Chopped Lightning Impulse - LIC)
-# (ID, Descripcion, Up, Up%, T1, T1%, Tc, Tc%, Beta, Beta%)
 nan = float('nan')
 RAW_DATA_LIC = [
     ("LIC-A1", "Front chopped lightning impulse", 872.2, 1.0, nan, nan, 0.543, 2.0, nan, nan),
     ("LIC-M1", "Front oscillations, chopped ", 850.0, 1.0, nan, nan, 0.569, 2.0, nan, nan),
     ("LIC-M2", "Front chopped", 0.289, 1.0, nan, nan, 0.514, 2.0, nan, nan),
     ("LIC-M3", "Front chopped", -0.3036, 1.0, nan, nan, 0.568, 2.0, nan, nan),
-    ("LIC-M4f", "Tail chopped", 0.1478, 1.0, 1.305, 2.0, 6.00, 2.0, -0.2, 1.0),
-    ("LIC-M4c", "Tail chopped", 0.1478, 1.0, 1.305, 2.0, 6.00, 2.0, -0.2, 1.0),
-    ("LIC-M5f", "Tail chopped", -389.9, 1.0, 0.857, 2.0, 9.24, 2.0, 6.8, 1.0),
-    ("LIC-M5c", "Tail chopped", -389.9, 1.0, 0.857, 2.0, 9.24, 2.0, 6.8, 1.0)
+    ("LIC-M4", "Tail chopped", 0.1478, 1.0, 1.305, 2.0, 6.00, 2.0, -0.2, 1.0),
+    ("LIC-M5", "Tail chopped", -389.9, 1.0, 0.857, 2.0, 9.24, 2.0, 6.8, 1.0)
 ]
 
-# 3. Generación automática de TEST_CASES
-TEST_CASES = []
-
-# Full Impulse (LI)
-for row in RAW_DATA_LI:
-    TEST_CASES.append(ImpulseCase(
-        file_id=f"{row[0]}.txt",
-        description=row[1],
-        expected_peak=row[2],
-        tolerance_peak=row[3],
-        expected_T1=row[4],
-        tolerance_T1=row[5],
-        expected_T2=row[6],
-        tolerance_T2=row[7],
-        expected_beta=row[8],
-        tolerance_beta=row[9]
-    ))
-
-# Chopped Impulse (LIC)
-# NOTA: Para LIC, T2 = Tc (Tiempo de corte)
-for row in RAW_DATA_LIC:
-    TEST_CASES.append(ImpulseCase(
-        file_id=f"{row[0]}.txt",
-        description=row[1],
-        expected_peak=row[2],
-        tolerance_peak=row[3],
-        expected_T1=row[4],
-        tolerance_T1=row[5],
-        expected_T2=row[6],
-        tolerance_T2=row[7],
-        expected_beta=row[8],
-        tolerance_beta=row[9]
-    ))
+# Listas separadas para los tests
+TEST_CASES_LI = [ImpulseCase(*row) for row in RAW_DATA_LI]
+TEST_CASES_LIC = [ImpulseCase(*row) for row in RAW_DATA_LIC]

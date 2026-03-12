@@ -364,11 +364,11 @@ class LightningImpulseAnalyzer:
         Ut = np.abs(self.Ut)
         self.idx_peak_Ut = np.argmax(self.test_voltage_curve_abs)
 
-        # --- Parámetros comunes a ambos tipos de onda ---
+        # Parámetros comunes a ambos tipos de onda.
         O1, T1 = self._calc_front_parameters(Ut)
         beta_prime = 100 * (self.peak_value - self.Ub) / self.peak_value
 
-        # --- Parámetros específicos por tipo ---
+        # Parámetros específicos por tipo.
         if self.impulse_type == "full":
             T2 = self._calc_tail_parameter(Ut, O1)
         elif self.impulse_type == "chopped":
@@ -385,10 +385,6 @@ class LightningImpulseAnalyzer:
             "Ub": self.Ub,              # Pico base
             "Beta_prime": beta_prime    # Sobreelevación relativa (%)
         }
-
-# --------------------------------------------------------------------------------------------------------------------------------------------------------
-# Métodos específicos para el análisis de impulsos cortados en la cola,
-# que requieren comparación con un impulso completo de referencia.
 
     def _find_time_lag(self, ref_analyzer):
         levels = [0.3, 0.5, 0.8]
@@ -417,13 +413,17 @@ class LightningImpulseAnalyzer:
 
         self.aligned_time_axis = self.time_axis + self.t_L
 
+# --------------------------------------------------------------------------------------------------------------------------------------------------------
+# Métodos específicos para el análisis de impulsos cortados en la cola,
+# que requieren comparación con un impulso completo de referencia.
+
     def _find_deviation_point(self, ref_analyzer, threshold=0.02):
         if self.norm_voltage is None or ref_analyzer.norm_voltage is None:
             raise ValueError("Las señales deben estar normalizadas.")
         if self.aligned_time_axis is None:
             raise ValueError("Falta alinear el eje de tiempo con t_L primero.")
 
-        # 1. Interpolar la señal cortada al eje de la referencia (tiempo ya alineado).
+        # Interpolar la señal cortada al eje de la referencia (tiempo ya alineado).
         chopped_norm_interp = np.interp(
             ref_analyzer.time_axis,
             self.aligned_time_axis,
@@ -431,12 +431,12 @@ class LightningImpulseAnalyzer:
             left=0.0, right=0.0
         )
 
-        # 2. Calcular diferencia absoluta post-pico.
+        # Calcular diferencia absoluta post-pico.
         tail_self = chopped_norm_interp[ref_analyzer.idx_peak:]
         tail_ref = ref_analyzer.norm_voltage[ref_analyzer.idx_peak:]
         diff = np.abs(tail_self - tail_ref)
 
-        # 3. Encontrar el umbral.
+        # Encontrar el umbral.
         mask_dev = diff > threshold
         if mask_dev.any():
             self.impulse_type = "chopped"
@@ -462,36 +462,36 @@ class LightningImpulseAnalyzer:
         if self.aligned_time_axis is None:
             raise ValueError("Falta alinear el eje de tiempo.")
 
-        # 1. Encontrar los índices del 30% y 80% de la onda normalizada.
+        # Encontrar los índices del 30% y 80% de la onda normalizada.
         front_self_norm = self.norm_voltage[:self.idx_peak]
         idx_30 = self._find_limit_index(front_self_norm, 0.3, mode="front")
         idx_80 = self._find_limit_index(front_self_norm, 0.8, mode="front")
 
-        # 2. Extraer los valores de tensión reales (absolutos) en esa zona.
+        # Extraer los valores de tensión reales (absolutos) en esa zona.
         vals_self = self.zeroed_curve_abs[idx_30:idx_80]
         t_interval = self.aligned_time_axis[idx_30:idx_80]
 
-        # 3. Interpolar la referencia usando sus tensiones reales (absolutas).
+        # Interpolar la referencia usando sus tensiones reales (absolutas).
         vals_ref = np.interp(
             t_interval,
             ref_analyzer.time_axis,
             ref_analyzer.zeroed_curve_abs
         )
 
-        # 4. Calcular la relación de las amplitudes.
+        # Calcular la relación de las amplitudes.
         self.E = np.mean(vals_self) / np.mean(vals_ref)
 
     def _scale_base_curve(self, ref_analyzer):
-        # 1. Extraer los parámetros de la curva de referencia.
+        # Extraer los parámetros de la curva de referencia.
         U_ref = ref_analyzer.fitted_params['U']
         tau1 = ref_analyzer.fitted_params['tau1']
         tau2 = ref_analyzer.fitted_params['tau2']
         td = ref_analyzer.fitted_params['td']
 
-        # 2. Escalar la amplitud con el factor E calculado.
+        # Escalar la amplitud con el factor E calculado.
         U_scaled = U_ref * self.E
 
-        # 3. Construir la nueva curva base evaluando en el tiempo alineado.
+        # Construir la nueva curva base evaluando en el tiempo alineado.
         self.base_curve = self._double_exponential_func(
             self.aligned_time_axis,
             U_scaled,
@@ -505,19 +505,19 @@ class LightningImpulseAnalyzer:
         if self.norm_voltage is None:
             raise ValueError("Error: La señal no ha sido normalizada.")
 
-        # 1. Buscar el punto de caída más abrupto en la cola usando el Gradiente (dV/dt).
+        # Buscar el punto de caída más abrupto en la cola usando el Gradiente (dV/dt).
         tail_vals = self.norm_voltage[self.idx_peak:]
         gradient = np.gradient(tail_vals)
         idx_steepest_local = np.argmin(gradient)
 
-        # 2. Encontrar el voltaje inmediatamente antes del colapso (U_collapse).
+        # Encontrar el voltaje inmediatamente antes del colapso (U_collapse).
         grad_2 = np.gradient(gradient[:idx_steepest_local])
         idx_knee_local = np.argmin(grad_2)
         idx_collapse = self.idx_peak + idx_knee_local
 
         U_collapse = self.zeroed_curve_abs[idx_collapse]
 
-        # 3. Definir puntos C (70%) y D (10%) referidos a U_collapse.
+        # Definir puntos C (70%) y D (10%) referidos a U_collapse.
         v70 = 0.7 * U_collapse
         v10 = 0.1 * U_collapse
         fall_segment = self.zeroed_curve_abs[idx_collapse:]
@@ -530,7 +530,7 @@ class LightningImpulseAnalyzer:
         idx_C = idx_collapse + idx_70_local
         idx_D = idx_collapse + idx_10_local
 
-        # 4. Regresión lineal entre C y D para hallar el instante de corte.
+        # Regresión lineal entre C y D para hallar el instante de corte.
         t_C, v_C = self.time_axis[idx_C], self.zeroed_curve_abs[idx_C]
         t_D, v_D = self.time_axis[idx_D], self.zeroed_curve_abs[idx_D]
 
@@ -542,7 +542,7 @@ class LightningImpulseAnalyzer:
         self.U_collapse = U_collapse
 
 # --------------------------------------------------------------------------------------------------------------------------------------------------------
-# Métodos de ejecución completa para cada tipo de onda.
+# Métodos de análisis completo para cada tipo de onda.
     def ref_lightning_impulse(self):
         self.impulse_type = "full"
         # Ejecutar pipeline completo
@@ -584,42 +584,3 @@ class LightningImpulseAnalyzer:
         self._filter_to_residual()
         self._construct_test_voltage_curve()
         self._calculate_parameters()
-
-# --------------------------------------------------------------------------------------------------------------------------------------------------------
-"""
-    def full_lightning_impulses(self):
-        self.impulse_type = "full"
-        # Ejecutar pipeline completo
-        self._remove_offset()
-        self._polarity_normalization()
-        self._normalize_waveform()
-        #-----------------------------------------------------
-        self._cutting_signal()
-        self._fit_base_curve()
-        self._construct_base_curve()
-        #-----------------------------------------------------
-        self._calculate_residual_curve()
-        self._filter_to_residual()
-        self._construct_test_voltage_curve()
-        self._calculate_parameters()
-
-    def chopped_lightning_impulses(self, ref_analyzer):
-        self.impulse_type = "chopped"
-        # Ejecutar pipeline completo
-        self._remove_offset()
-        self._polarity_normalization()
-        self._normalize_waveform()
-        #-----------------------------------------------------
-        self._find_time_lag(ref_analyzer)
-        self._adjust_time_lag()
-        self._find_deviation_point(ref_analyzer)
-        self._select_data_up_to_deviation()
-        self._find_amplitude_ratio(ref_analyzer)
-        self._scale_base_curve(ref_analyzer)
-        self._find_chopping_instant()
-        #-----------------------------------------------------
-        self._calculate_residual_curve()
-        self._filter_to_residual()
-        self._construct_test_voltage_curve()
-        self._calculate_parameters()
-"""

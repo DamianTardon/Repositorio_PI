@@ -1,30 +1,3 @@
-"""
-Iniciar sistema - OK
-Iniciar instrumento - OK
-Identificar instrumento - OK
-Ontener configuracion actual - OK
-Configurar valores de fabrica - OK
-Configurar disparo unico - OK
-Obtener/Configurar escala vertical - OK - OK
-Obtener/Configurar modo de adquisicion - OK - OK
-Obtener/Configurar escala horizontal - OK - OK
-Obtener/Configurar posicion horizontal - OK - OK
-Obtener/Configurar offset escala vertical - OK - OK
-Obtener/Configurar factor de atenuacion de canal - OK - OK
-Obtener/Configurar tipo de prueba (tension-corriente) - OK - OK
-Obtener/Configurar acoplo (dc-ac) - OK - OK
-Obtener/Configurar canal activo - OK - OK
-Obtener/Configurar acoplo de trigger (dc-ac) - OK - OK
-Obtener/Configurar nivel de trigger - OK - OK
-Obtener/Configurar modo de trigger - OK - OK
-Obtener/Configurar filtro de trigger - OK - OK
-Obtener/Configurar flanco de trigger - OK - OK
-Obtener/Configurar fuente de trigger - OK - OK
-Obtener/Configurar tipo de trigger - OK - OK
-Obtener/Configurar filtro de ruido de trigger - OK - OK
-Obtener estado de trigger - OK
-"""
-
 import time
 from struct import unpack
 import sys

@@ -60,7 +60,12 @@ class LightningImpulseAnalyzer:
         self.chopped_front_voltage = None
         self.chopped_front_time = None
         self.U_collapse = None
-        self.results = None
+        self.results = {
+            "Ut": None,
+            "T1": None,
+            "T2": None,
+            "Beta_prime": None
+        }
 
     def _remove_offset(self):
         # a) Encontrar el nivel base de la curva registrada.
@@ -69,7 +74,7 @@ class LightningImpulseAnalyzer:
         n = int(self.idx_peak * 0.3)
 
         if n < 1:
-            raise ValueError("Error: No hay suficientes muestras de pre-trigger para calcular el offset.")
+            raise ValueError("Error: No hay suficientes muestras de pre-trigger para calcular el offset. Ajuste el delay o el nivel de trigger.")
 
         pre_trigger = self.raw_voltage[:n]
         mean = np.mean(pre_trigger)
@@ -99,10 +104,10 @@ class LightningImpulseAnalyzer:
             raise ValueError("Error: Falta quitar el offset de la onda.")
 
         # c) Encontrar el valor extremo, Ue, de la curva registrada compensada en offset, U0(t).
-        # 1. Encontrar el índice del máximo valor absoluto.
+        # Encontrar el índice del máximo valor absoluto.
         self.Ue = self.zeroed_curve[self.idx_peak]
 
-        # 2. Determinar la polaridad de la señal.
+        # Determinar la polaridad de la señal.
         if self.Ue >= 0:
             self.polarity = "Positiva"
             self.factor = 1.0
@@ -156,12 +161,17 @@ class LightningImpulseAnalyzer:
         threshold_20 = 0.2 * self.peak_value
         threshold_40 = 0.4 * self.peak_value
 
-        # d) Encontrar la última muestra en el frente inferior a 0,2 * Ue.
-        # 1. Buscar índice del 20% en el frente.
-        idx_20 = self._find_limit_index(front_data, threshold_20, mode="front")
+        # d) Encontrar la última muestra en el frente, inferior a 0,2 * Ue.
+        try:
+            idx_20 = self._find_limit_index(front_data, threshold_20, mode="front")
+        except ValueError:
+            raise ValueError("No se encontraron suficientes datos en el frente de la onda (umbral 20%). Verifique la escala de tiempo o si hay ruido excesivo.")
 
-        # 2. Buscar índice del 40% en la cola (retorna índice relativo a tail_data)
-        idx_40_local = self._find_limit_index(tail_data, threshold_40, mode="tail")
+        # e) Encontrar la última muestra en la cola, superior a 0,4 * Ue.
+        try:
+            idx_40_local = self._find_limit_index(tail_data, threshold_40, mode="tail")
+        except ValueError:
+            raise ValueError("La onda no decae al 40% del pico en la cola para realizar el ajuste de curva. Aumente la escala de tiempo (Time/DIV).")
         idx_40 = self.idx_peak + idx_40_local
 
         # Limites inferior y superior:
@@ -203,7 +213,7 @@ class LightningImpulseAnalyzer:
 
         idx_peak_in_slice = np.argmax(np.abs(self.fit_voltage))
         sigma = np.ones_like(self.fit_voltage)
-        #sigma varía entre 0 y 1. Mientras menor sea sigma, el ajuste en el frente es más preciso.
+        # sigma varía entre 0 y 1. Mientras menor sea sigma, el ajuste en el frente es más preciso.
         sigma[:idx_peak_in_slice + 5] = self.sigma_fit
 
         # 2. Ejecutar el ajuste de curva (Levenberg-Marquardt).
@@ -225,8 +235,8 @@ class LightningImpulseAnalyzer:
             }
 
         except RuntimeError as e:
-            raise RuntimeError(f"Falló el ajuste de curva : {e}")
- 
+            raise ValueError("Falló el ajuste matemático de la curva base. La forma de onda puede estar muy distorsionada o cortada prematuramente.")
+
         # 3. Generar la función ajustada con los parámetros encontrados.
         self.fitted_curve = self._double_exponential_func(self.fit_time,
                                                           self.fitted_params['U'],
@@ -307,6 +317,7 @@ class LightningImpulseAnalyzer:
         # Devolver signo a la curva:
         self.Ut = np.max(self.test_voltage_curve_abs) * self.factor
         self.test_voltage_curve = self.test_voltage_curve_abs * self.factor
+        self.results["Ut"] = self.Ut
 
     @staticmethod
     def _linear_interpolation(t_array, v_array, idx_low, target_voltage):
@@ -363,28 +374,26 @@ class LightningImpulseAnalyzer:
 
         Ut = np.abs(self.Ut)
         self.idx_peak_Ut = np.argmax(self.test_voltage_curve_abs)
+        self.results["Beta_prime"] = 100 * (self.peak_value - self.Ub) / self.peak_value
 
-        # Parámetros comunes a ambos tipos de onda.
-        O1, T1 = self._calc_front_parameters(Ut)
-        beta_prime = 100 * (self.peak_value - self.Ub) / self.peak_value
+        # Intentar calcular O1 y T1.
+        try:
+            O1, T1 = self._calc_front_parameters(Ut)
+            self.results["T1"] = T1
+        except ValueError:
+            raise ValueError("No se pudo calcular el Tiempo de Frente (T1). El frente de onda puede tener demasiado ruido o no alcanza los niveles del 30% y 90%.")
 
-        # Parámetros específicos por tipo.
-        if self.impulse_type == "full":
-            T2 = self._calc_tail_parameter(Ut, O1)
-        elif self.impulse_type == "chopped":
-            T2 = self.Tcutting_moment - O1
-        else:
-            raise ValueError("Tipo de impulso desconocido. Use 'full' o 'chopped'.")
-
-        self.results = {
-            "Ue": self.Ue,              # Tensión pico original (kV)
-            "Ut": self.Ut,              # Tensión pico de ensayo (kV)
-            "T1": T1,                   # Tiempo de frente (µs)
-            "T2": T2,                   # Tiempo de cola - Tiempo de corte (µs)
-            "O1": O1,                   # Origen virtual (µs)
-            "Ub": self.Ub,              # Pico base
-            "Beta_prime": beta_prime    # Sobreelevación relativa (%)
-        }
+        # Intentar calcular T2.
+        try:
+            if self.impulse_type == "full":
+                T2 = self._calc_tail_parameter(Ut, O1)
+            elif self.impulse_type == "chopped":
+                T2 = self.Tcutting_moment - O1
+            else:
+                raise ValueError("Tipo de impulso desconocido.")
+            self.results["T2"] = T2
+        except ValueError:
+            raise ValueError("La onda no decae al 50% dentro de la ventana de captura. Verifique la escala de tiempo (Time/DIV) o el circuito de descarga.")
 
     def _find_time_lag(self, ref_analyzer):
         levels = [0.3, 0.5, 0.8]

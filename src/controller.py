@@ -1,4 +1,5 @@
 import time
+import re
 from PySide6.QtCore import QObject, QThread, Signal, Slot, QRegularExpression, QTimer
 from PySide6.QtWidgets import QMessageBox
 from PySide6.QtGui import QRegularExpressionValidator, QIntValidator
@@ -109,18 +110,24 @@ class MainController(QObject):
         self.ui.time_unit.addItems(time_units)
         self.ui.delay_unit.addItems(time_units)
 
-        # Cargar los valores por defecto.
+        # Inicializar unidades de medida.
         self.ui.ch1_voltage_value.addItems(self.voltage_values["mV"])
         self.ui.ch2_voltage_value.addItems(self.voltage_values["mV"])
         self.ui.time_value.addItems(self.time_values["us"])
 
-        # Cargar los textos por defecto.
+        # Inicializar valores del osciloscopio.
         self.ui.ch1_offset_value.setText("0.0")
         self.ui.ch2_offset_value.setText("0.0")
         self.ui.delay_value.setText("0.0")
         self.ui.trigger_level_value.setText("0.0")
 
-        # Estado inicial de habilitadores.
+        # Inicializar atenuaciones.
+        self.ui.ch1_resistive_divider_value.setText("1.0")
+        self.ui.ch1_attenuator_value.setText("1.0")
+        self.ui.ch2_resistive_divider_value.setText("1.0")
+        self.ui.ch2_attenuator_value.setText("1.0")
+
+        # Inicializar habilitadores de canales.
         self.ui.ch1_enabler.setChecked(True)
         self.ui.ch2_enabler.setChecked(True)
         self._toggle_attenuations()
@@ -162,6 +169,28 @@ class MainController(QObject):
         # Flanco de Trigger.
         self.ui.trigger_edge_positive.toggled.connect(lambda checked: self.osc.set_trigger_slope(0) if checked else None)
         self.ui.trigger_edge_negative.toggled.connect(lambda checked: self.osc.set_trigger_slope(1) if checked else None)
+
+        # Validadores en tiempo real para Atenuaciones
+        self.ui.ch1_resistive_divider_value.editingFinished.connect(lambda: self._check_attenuation_value(self.ui.ch1_resistive_divider_value, "Divisor resistivo (CH1)"))
+        self.ui.ch1_attenuator_value.editingFinished.connect(lambda: self._check_attenuation_value(self.ui.ch1_attenuator_value, "Atenuador (CH1)"))
+        self.ui.ch2_resistive_divider_value.editingFinished.connect(lambda: self._check_attenuation_value(self.ui.ch2_resistive_divider_value, "Divisor resistivo (CH2)"))
+        self.ui.ch2_attenuator_value.editingFinished.connect(lambda: self._check_attenuation_value(self.ui.ch2_attenuator_value, "Atenuador (CH2)"))
+
+    def _update_results_gui(self, analyzer):
+        results = analyzer.results
+        
+        # Función interna para formatear o dejar en blanco los campos de resultados.
+        def set_val(line_edit, key, scale=1.0):
+            val = results.get(key)
+            if val is not None:
+                line_edit.setText(f"{val * scale:.2f}")
+            else:
+                line_edit.setText("") # Deja en blanco si no se pudo calcular
+
+        set_val(self.ui.peak_voltage_value, "Ut", 1/1000.0) # kV
+        set_val(self.ui.t1_value, "T1", 1e6) # us
+        set_val(self.ui.t2_value, "T2", 1e6) # us
+        set_val(self.ui.os_value, "Beta_prime", 1.0) # %
 
     # --- Funciones Lógicas ---
 
@@ -212,16 +241,21 @@ class MainController(QObject):
         item_year = self.ui.item_year_value.text().strip()
         client = self.ui.client_value.text().strip()
 
-        # Validar que ninguno de los campos esté vacío.
+        # Validar que ningun campos esté vacío.
         if not item_num or not item_year:
             QMessageBox.warning(
-                None, 
-                "Datos faltantes", 
-                "Por favor, complete el campo de 'Item N.°'para crear la carpeta del ensayo."
+                None,
+                "Datos faltantes",
+                "Por favor, complete el campo 'Item' para crear la carpeta del ensayo."
             )
             return
 
-        # Si los datos están completos, procede con la creación.
+        # Verificar los textos para evitar caracteres inválidos en rutas de Windows/Linux.
+        item_num = re.sub(r'[\\/*?:"<>|]', "", item_num)
+        item_year = re.sub(r'[\\/*?:"<>|]', "", item_year)
+        client = re.sub(r'[\\/*?:"<>|]', "", client)
+
+        # Si los datos están completos, crea la carpeta.
         folder_name = f"{item_num}-{item_year}"
         if client:
             folder_name += f" - {client}"
@@ -239,12 +273,22 @@ class MainController(QObject):
             QMessageBox.warning(None, "Error", "El osciloscopio no está conectado.")
             return
 
-        self.ui.btn_wait_waveform.setEnabled(False)
-        self.ui.btn_wait_waveform.setText("Esperando...")
+        # Si el hilo ya está corriendo, el botón actúa como "Cancelar"
+        if self.wait_thread and self.wait_thread.isRunning():
+            self.wait_thread.stop()
+            self.ui.btn_wait_waveform.setText("Iniciar")
+            return
+
+        # Configurar estado de espera.
+        self.ui.btn_wait_waveform.setText("Cancelar")
 
         self.wait_thread = WaitWaveformThread(self.osc)
         self.wait_thread.wave_detected.connect(self.process_waveform)
         self.wait_thread.error_occurred.connect(self._handle_thread_error)
+        
+        # Restaura el botón de captura de onda, luego de la cancelación.
+        self.wait_thread.finished.connect(lambda: self.ui.btn_wait_waveform.setText("Iniciar"))
+        
         self.wait_thread.start()
 
     @Slot()
@@ -279,18 +323,21 @@ class MainController(QObject):
             else:
                 temp_analyzer.lightning_impulse(self.ref_analyzer)
 
-            # Actualizar GUI con resultados.
-            results = temp_analyzer.results
-            self.ui.peak_voltage_value.setText(f"{results['Ut']/1000:.2f}") # kV.
-            self.ui.t1_value.setText(f"{results['T1']*1e6:.2f}") # us.
-            self.ui.t2_value.setText(f"{results['T2']*1e6:.2f}") # us.
-            self.ui.os_value.setText(f"{results['Beta_prime']:.2f}") # %
-
-            # TODO: Aquí irá el código de actualización del gráfico (self.ui.graph_view)
+            # Si todo salió perfecto, actualizamos la GUI
+            self._update_results_gui(temp_analyzer)
             print("Onda procesada y lista para ser guardada.")
+            # TODO: Aquí irá el código de actualización del gráfico
+
+        except ValueError as e:
+            # Capturamos errores de análisis (Onda corta, ruido, etc.)
+            self._update_results_gui(temp_analyzer) # Actualiza los valores parciales calculados
+            QMessageBox.warning(None, "Advertencia de Análisis", str(e))
+            # TODO: Aquí irá el código de actualización del gráfico (para que el usuario vea la onda cruda y entienda el problema)
 
         except Exception as e:
-            QMessageBox.critical(None, "Error de Análisis", str(e))
+            # Capturamos fallos críticos inesperados
+            self._update_results_gui(temp_analyzer)
+            QMessageBox.critical(None, "Error Crítico de Análisis", f"Error inesperado:\n{str(e)}")
 
     def save_waveform(self):
         if not self.last_acquired_data:
@@ -298,53 +345,77 @@ class MainController(QObject):
             return
 
         inBuffer, waveform, dt = self.last_acquired_data
-        active_channel = 1 if self.ui.ch1_enabler.isChecked() else 2
 
+        # Definir nombre y guardar respaldo crudo (.bin)
         self.waveform_count += 1
         base_name = f"Onda_{self.waveform_count:02d}"
 
-        # Guardar Archivos.
         bin_path = self.fm.get_new_name(prefijo=base_name, extension=".bin")
         self.fm.create_bin_int16(inBuffer, bin_path)
 
-        # Analizar en profundidad para fijar estado
-        real_waveform = self._apply_hardware_attenuations(waveform, active_channel)
-        analyzer = self.AnalyzerClass(real_waveform, dt, sigma_fit=1.0)
+        # Verificar si hay datos procesados para exportar (.h5 y .csv)
+        if self.pending_analyzer is not None:
+            analyzer = self.pending_analyzer
 
-        if self.ref_analyzer is None:
-            analyzer.ref_lightning_impulse()
-            self.ref_analyzer = analyzer
-            waveform_type = "Referencia"
+            # Consolidar la referencia si es la primera onda.
+            if self.ref_analyzer is None:
+                self.ref_analyzer = analyzer
+                waveform_type = "Referencia"
+            else:
+                waveform_type = "Ensayo"
+
+            # Guardar archivos procesados usando los datos del analizador.
+            h5_path = self.fm.get_new_name(prefijo=base_name, extension=".h5")
+            self.fm.create_hdf5(analyzer.time_axis, analyzer.raw_voltage, h5_path)
+
+            csv_path = self.fm.get_new_name(prefijo=base_name, extension=".csv")
+            self.fm.create_csv(analyzer.time_axis, analyzer.raw_voltage, csv_path)
+
+            # Actualizar Interfaz.
+            self.ui.graph_name.setText(f"{base_name} ({waveform_type})")
+            QMessageBox.information(None, "Guardado", f"{base_name} guardada exitosamente.\n(Respaldo BIN, HDF5 y CSV)")
+
         else:
-            analyzer.lightning_impulse(self.ref_analyzer)
-            waveform_type = "Ensayo"
+            # Si pending_analyzer es None, significa que la onda falló la matemática.
+            self.ui.graph_name.setText(f"{base_name} (Solo Respaldo)")
+            QMessageBox.warning(
+                None, 
+                "Análisis Fallido (Respaldo Seguro)", 
+                f"El respaldo original se guardó correctamente como:\n{base_name}.bin\n\nSin embargo, la onda tuvo errores de cálculo, por lo que no se generaron archivos .h5 ni .csv."
+            )
 
-        # Exportar a HDF5 (Usando el time_axis generado por el analyzer).
-        h5_path = self.fm.get_new_name(prefijo=base_name, extension=".h5")
-        self.fm.create_hdf5(analyzer.time_axis, real_waveform, h5_path)
-
-        # Actualizar Interfaz.
-        self.ui.graph_name.setText(f"{base_name} ({waveform_type})")
-
-        # Limpiar buffer temporal.
+        # 4. Limpiar buffers temporales para el próximo disparo
         self.last_acquired_data = None
-        QMessageBox.information(None, "Guardado", f"{base_name} guardada exitosamente.")
+        self.pending_analyzer = None
 
     # --- Utilidades y Actualizadores de Hardware ---
 
     def _apply_hardware_attenuations(self, waveform, channel):
+        if channel == 1:
+            divider = float(self.ui.ch1_resistive_divider_value.text())
+            attenuator = float(self.ui.ch1_attenuator_value.text())
+        else:
+            divider = float(self.ui.ch2_resistive_divider_value.text())
+            attenuator = float(self.ui.ch2_attenuator_value.text())
+
+        return waveform * divider * attenuator
+
+    def _check_attenuation_value(self, line_edit, field_name):
+        text = line_edit.text().strip()
+
+        # Si el campo está vacío. Se asigna por defecto: 1.0.
+        if not text:
+            line_edit.setText("1.0")
+            return
+
         try:
-            if channel == 1:
-                divider = float(self.ui.ch1_resistive_divider_value.text() or 1.0)
-                attenuator = float(self.ui.ch1_attenuator_value.text() or 1.0)
-            else:
-                divider = float(self.ui.ch2_resistive_divider_value.text() or 1.0)
-                attenuator = float(self.ui.ch2_attenuator_value.text() or 1.0)
-
-            return waveform * divider * attenuator
-
+            val = float(text)
+            if val <= 0:
+                QMessageBox.warning(None, "Valor Inválido", f"El valor en '{field_name}' debe ser mayor a 0.\nSe restaurará a 1.0.")
+                line_edit.setText("1.0")
         except ValueError:
-            return waveform
+            QMessageBox.warning(None, "Valor Inválido", f"El valor en '{field_name}' no es reconocido.\nSe restaurará a 1.0.")
+            line_edit.setText("1.0")
 
     def _toggle_attenuations(self):
         state = self.ui.attenuations_enabler.isChecked()
@@ -393,7 +464,6 @@ class MainController(QObject):
 
     @Slot(str)
     def _handle_thread_error(self, error_msg):
-        self.ui.btn_wait_waveform.setEnabled(True)
         self.ui.btn_wait_waveform.setText("Iniciar")
         QMessageBox.critical(None, "Error de Comunicación", f"Se produjo un error:\n{error_msg}")
 

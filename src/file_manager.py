@@ -6,6 +6,9 @@ import numpy as np
 import struct
 
 class FileManager:
+    # Constante de cuantización vertical del ADC específica del modelo GWInstekGDS1000AU.
+    ADC_STEPS_PER_DIV = 25.0
+
     def __init__(self, project_name="item-año - cliente"):
         # Definir Rutas
         self.base = Path.cwd() / project_name
@@ -75,7 +78,7 @@ class FileManager:
     def read_bin_without_header(file_path):
         # dtype='>i2': Big Endian (>), 2 bytes int (i2)
         raw_data = np.fromfile(file_path, dtype='>i2')
-        waveform = raw_data / 25.0
+        waveform = raw_data / FileManager.ADC_STEPS_PER_DIV
         return waveform
 
     @staticmethod

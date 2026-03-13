@@ -5,6 +5,9 @@ import pyvisa
 import numpy as np
 
 class GWInstekGDS1000AU:
+    # Constante de cuantización vertical del ADC específica del modelo.
+    ADC_STEPS_PER_DIV = 25.0
+
     def __init__(self):
         # Inicializa el sistema VISA y opcionalmente conecta a un instrumento.
         self.dso = None
@@ -78,7 +81,7 @@ class GWInstekGDS1000AU:
         waveform_raw = np.array(waveform_raw)
         num = len(waveform_raw)
         print(f'Cantidad de muestras = {num}')
-        waveform = waveform_raw * vdiv / 25.0
+        waveform = waveform_raw * vdiv / self.ADC_STEPS_PER_DIV
         return waveform, dt
 
     def default_settings(self):

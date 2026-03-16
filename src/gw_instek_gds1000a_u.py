@@ -536,7 +536,7 @@ class GWInstekGDS1000AU:
             "uV": 1e-6,      # Microvolt
             "s": 1.0,        # Segundo
             "ms": 1e-3,      # Milisegundo
-            "us": 1e-6,      # Microsegundo
+            "µs": 1e-6,      # Microsegundo
             "ns": 1e-9       # Nanosegundo
         }
         

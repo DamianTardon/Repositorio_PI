@@ -306,7 +306,7 @@ class LightningImpulseAnalyzer:
 
     def _construct_test_voltage_curve(self):
         # l) Obtener la curva de tensión de ensayo Ut(t) = Um(t) + Rf(t).
-        # Validaciones de estado
+        # Validaciones de estado.
         if self.base_curve is None:
             raise ValueError("Error: Falta calcular la curva base Um(t).")
         if self.filtered_residual is None:

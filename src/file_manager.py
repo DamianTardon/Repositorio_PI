@@ -17,10 +17,15 @@ class FileManager:
         self.results = self.base / "03 Resultados"
         
         # Crear Estructura Automáticamente al iniciar
-        self._create_structure()
+        #self._create_structure()
     
-    def create_new_structure(self, project_name):
-        self.base = Path.cwd() / project_name
+    def create_new_structure(self, project_name, base_dir=None):
+        # Si se recibe una ruta base, se usa. Si no, usa el directorio de trabajo (cwd).
+        if base_dir:
+            self.base = Path(base_dir) / project_name
+        else:
+            self.base = Path.cwd() / project_name
+
         self.raw = self.base / "01 Respaldo"
         self.analysis = self.base / "02 Analisis de datos"
         self.results = self.base / "03 Resultados"
@@ -41,7 +46,7 @@ class FileManager:
             return self.raw / nombre
         elif extension == ".h5":
             return self.analysis / nombre
-        elif extension == ".png" or extension == ".pdf":
+        elif extension == ".png" or extension == ".pdf" or extension == ".csv":
             return self.results / nombre
         else:
             return self.base / nombre

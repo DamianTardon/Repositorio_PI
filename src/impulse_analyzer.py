@@ -39,7 +39,6 @@ class LightningImpulseAnalyzer:
         self.start_slice = None
         self.end_slice = None
         self.fit_voltage = None
-        self.fit_voltage_normalized = None
         self.fit_time = None
         self.fitted_params = None
         self.fitted_curve = None
@@ -50,6 +49,7 @@ class LightningImpulseAnalyzer:
         self.filtered_residual = None
         self.test_voltage_curve_abs = None
         self.test_voltage_curve = None
+        self.test_voltage_curve_norm = None
         self.Ut = None
         self.idx_peak_Ut = None
         self.Tcutting_moment = None
@@ -74,7 +74,7 @@ class LightningImpulseAnalyzer:
         n = int(self.idx_peak * 0.3)
 
         if n < 1:
-            raise ValueError("Error: No hay suficientes muestras de pre-trigger para calcular el offset. Ajuste el delay o el nivel de trigger.")
+            raise ValueError("Error: No hay suficientes muestras de pre-trigger para calcular el offset. Ajuste el delay o el nivel de trigger, y vuelva a intentarlo.")
 
         pre_trigger = self.raw_voltage[:n]
         mean = np.mean(pre_trigger)
@@ -152,7 +152,7 @@ class LightningImpulseAnalyzer:
         if self.impulse_type == "chopped":
             raise RuntimeError("Este método no aplica a impulsos cortados.")
 
-        if self.peak_value is None or self.norm_voltage is None:
+        if self.peak_value is None:
             raise ValueError("Error: Falta normalizar la onda.")
 
         front_data = self.zeroed_curve_abs[:self.idx_peak]
@@ -179,7 +179,6 @@ class LightningImpulseAnalyzer:
         self.end_slice = idx_40 + 1
 
         self.fit_voltage = self.zeroed_curve_abs[self.start_slice:self.end_slice]
-        self.fit_voltage_normalized = self.norm_voltage[self.start_slice:self.end_slice]
         self.fit_time = self.time_axis[self.start_slice:self.end_slice]
 
     @staticmethod
@@ -318,6 +317,9 @@ class LightningImpulseAnalyzer:
         self.Ut = np.max(self.test_voltage_curve_abs) * self.factor
         self.test_voltage_curve = self.test_voltage_curve_abs * self.factor
         self.results["Ut"] = self.Ut
+
+        # Curva de tensión de ensayo normalizada a 1.
+        self.test_voltage_curve_norm = self.test_voltage_curve / np.abs(self.Ut)
 
     @staticmethod
     def _linear_interpolation(t_array, v_array, idx_low, target_voltage):
@@ -497,7 +499,7 @@ class LightningImpulseAnalyzer:
         tau2 = ref_analyzer.fitted_params['tau2']
         td = ref_analyzer.fitted_params['td']
 
-        # Escalar la amplitud con el factor E calculado.
+        # Escalar la onda de referencia con el factor E.
         U_scaled = U_ref * self.E
 
         # Construir la nueva curva base evaluando en el tiempo alineado.

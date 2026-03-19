@@ -10,7 +10,7 @@ class FileManager:
     ADC_STEPS_PER_DIV = 25.0
 
     def __init__(self, project_name="item-año - cliente"):
-        # Definir Rutas
+        # Definir Rutas desde donde se ejecuta el programa.
         self.base = Path.cwd() / project_name
         self.raw = self.base / "01 Respaldo"
         self.analysis = self.base / "02 Analisis de datos"
@@ -32,7 +32,7 @@ class FileManager:
         self._create_structure()
 
     def _create_structure(self):
-        # Crea las carpetas si no existen.
+        # Crea la carpeta si no existe. Y no hace nada si ya existe.
         for carpeta in [self.raw, self.analysis, self.results]:
             carpeta.mkdir(parents=True, exist_ok=True)
             #print(f"Verificado: {carpeta}")
@@ -61,7 +61,7 @@ class FileManager:
     # Crear HDF5: para almacenamiento principal y procesamiento.
     @staticmethod
     def create_hdf5(time, ch1, file_path):
-        # Guarda donde tú le digas
+        # Guarda los resultados intermedios del procesamiento de la onda en formato HDF5.
         with h5py.File(file_path, "w") as f:
             f.create_dataset("Tiempo [s]", data=time, compression="gzip")
             f.create_dataset("Tensión [V]", data=ch1, compression="gzip")
@@ -89,13 +89,13 @@ class FileManager:
     @staticmethod
     def read_bin_with_header(file_path):
         with open(file_path, "rb") as f:
-            # Leer primeros 2 bytes (# + Digito)
+            # Leer primeros 2 bytes (# + Digito).
             header_start = f.read(2)
             
-            # Parsear el dígito de tamaño
+            # Parsear el dígito de tamaño.
             data_size_digit = int(chr(header_start[1]))
             
-            # Leer el tamaño del bloque (los siguientes N bytes)
+            # Leer el tamaño del bloque (los siguientes N bytes).
             size_bytes = f.read(data_size_digit)
             data_size = int(size_bytes.decode('ascii'))
             
@@ -110,10 +110,11 @@ class FileManager:
             
             print(f"Periodo de muestreo (dt): {dt:.2e} [s] = {dt*1e9:.0f} [ns]")
             
-            # Leemos el resto del archivo (que debe coincidir con data_size)
+            # Leemos el resto del archivo (que debe coincidir con data_size).
             raw_bytes = f.read()
             
-            # Validación de seguridad (opcional pero recomendada)
+            # Validación de seguridad.
+            # Si el tamaño de los datos leídos no coincide con lo esperado, se muestra una advertencia.
             if len(raw_bytes) != data_size-8:
                 print(f"Advertencia: Se esperaban {data_size} bytes pero se leyeron {len(raw_bytes)}")
 
@@ -137,7 +138,7 @@ class FileManager:
             return f["Tensión [V]"][:]
         
     @staticmethod
-    def read_calibration_file(file_path):
+    def read_TDG_file(file_path):
         metadata = {}
         data = []
         

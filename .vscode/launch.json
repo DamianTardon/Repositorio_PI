@@ -2,7 +2,7 @@
     "version": "0.2.0",
     "configurations": [
         {
-            "name": "Modo PRUEBA",
+            "name": "PRUEBA",
             "type": "debugpy",
             "request": "launch",
             "program": "${workspaceFolder}/src/main.py",
@@ -12,10 +12,10 @@
             }
         },
         {
-            "name": "Modo PRODUCCIÓN",
+            "name": "PRODUCCIÓN",
             "type": "debugpy",
             "request": "launch",
-            "program": "${workspaceFolder}/main.py",
+            "program": "${workspaceFolder}/src/main.py",
             "console": "integratedTerminal",
             "env": {
                 "DEBUG_MODE": "False"

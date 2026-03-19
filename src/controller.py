@@ -46,6 +46,7 @@ class MainController(QObject):
 
         # Variables de estado del ensayo.
         self.ref_analyzer = None
+        self.pending_analyzer = None
         self.last_acquired_data = None
         self.waveform_count = 0
         self.project_created = False    # Bandera de creación de carpeta.
@@ -265,9 +266,8 @@ class MainController(QObject):
         set_val(self.ui.os_value, "Beta_prime", 1.0) # %
 
     def _on_graph_type_changed(self):
-        # Actualiza el gráfico si el usuario cambia el radio button y hay un análisis válido en memoria.
-        if hasattr(self, 'pending_analyzer') and self.pending_analyzer is not None:
-            self._update_plot(self.pending_analyzer, is_successful=True)
+        # Actualiza el gráfico según lo que elija el usuario: "real" o "normalizado".
+        self._update_plot(self.pending_analyzer, is_successful=True)
 
     def _update_plot(self, analyzer, is_successful=True):
         # Título del gráfico basado en el número de ítem.
@@ -292,10 +292,16 @@ class MainController(QObject):
         # Graficar la última onda, no guardada.
         if analyzer is not None:
             # Seleccionar el eje de tiempo adecuado (usa el alineado si existe).
-            t_axis = analyzer.aligned_time_axis if analyzer.aligned_time_axis is not None else analyzer.time_axis
+            if analyzer.aligned_time_axis is not None:
+                t_axis = analyzer.aligned_time_axis
+            else:
+                t_axis = analyzer.time_axis
 
             if is_successful:
-                y_data = analyzer.norm_voltage if is_normalized else analyzer.test_voltage_curve
+                if is_normalized:
+                    y_data = analyzer.test_voltage_curve_norm
+                else:
+                    y_data = analyzer.test_voltage_curve
                 pen_color = (0, 100, 200)
                 legend_name = "Actual"
             else:
@@ -304,7 +310,7 @@ class MainController(QObject):
                 legend_name = "Error"
                 # Dibujar la curva en el lienzo.
             if t_axis is not None and y_data is not None:
-                pen = pg.mkPen(color=pen_color, width=3) # Más gruesa para destacar
+                pen = pg.mkPen(color=pen_color, width=3) # Más gruesa para destacar.
                 self.ui.graph_view.plot(t_axis, y_data, name=legend_name, pen=pen)
                 self.ui.graph_view.setTitle("Onda sin guardar", color=text_color, size='14pt', bold=True)
         else:
@@ -332,10 +338,11 @@ class MainController(QObject):
 
         try:
             # Leer el archivo usando la función de file_manager.py
-            metadata, data_list = self.fm.read_calibration_file(file_path)
+            metadata, data_list = self.fm.read_TDG_file(file_path)
 
             # Extraer dt y convertir la lista de tensión a un array de NumPy.
             dt = metadata['sampling_period']
+            print(f"dt: {dt}")
             waveform = np.array(data_list)
 
             # Crear un inBuffer ficticio para que no falle al probar el botón de Guardar.
@@ -427,12 +434,25 @@ class MainController(QObject):
         base_dir = QFileDialog.getExistingDirectory(
             None,
             "Seleccionar ubicación para el nuevo ensayo",
-            "",  # Inicia en el último directorio usado
+            "",  # Inicia en el último directorio usado.
             QFileDialog.ShowDirsOnly | QFileDialog.DontResolveSymlinks
         )
 
         # Si el usuario cierra la ventana o presiona cancelar, abortamos.
         if not base_dir:
+            return
+
+        # Validación de carpeta existente.
+        full_path = os.path.join(base_dir, folder_name)
+        
+        if os.path.exists(full_path):
+            QMessageBox.warning(
+                None,
+                "Carpeta Existente",
+                f"La carpeta '{folder_name}' ya existe en el directorio seleccionado.\n\n"
+                f"Por favor, elija otra ubicación o modifique los datos del ensayo,\n"
+                f"para no sobrescribir la información."
+            )
             return
 
         # Crear la estructura en el directorio seleccionado por el usuario.
@@ -442,12 +462,12 @@ class MainController(QObject):
         self.ref_analyzer = None
         self.waveform_count = 0
         self.ui.graph_name.setText("Ensayo inicializado")
-        self.project_created = True  # Habilita el guardado de ondas.
+        self.project_created = True # Habilita el guardado de ondas.
 
-        # Mostrar mensaje de éxito con la ruta completa usando os.path
+        # Mostrar mensaje de éxito con la ruta completa usando os.path.
         full_path = os.path.join(base_dir, folder_name)
 
-        # Normalizar las barras invertidas para que se lea mejor en Windows
+        # Normalizar las barras invertidas para que se lea mejor en Windows.
         full_path_display = os.path.normpath(full_path)
 
         QMessageBox.information(None, "Éxito", f"Carpeta creada correctamente en:\n\n{full_path_display}")
@@ -532,7 +552,12 @@ class MainController(QObject):
             self._update_results_gui(temp_analyzer)
             self.pending_analyzer = None
             self._update_plot(temp_analyzer, is_successful=False)
-            QMessageBox.critical(None, "Error Crítico de Análisis", f"Error inesperado:\n{str(e)}")
+            QMessageBox.critical(
+                None, 
+                "Error Crítico de Análisis", 
+                f"Ocurrió un error inesperado al calcular los parámetros de la onda.\n"
+                f"Intente capturar nuevamente la onda o reinicie el programa."
+            )
 
     def save_waveform(self):
         # Validar que la carpeta exista antes de guardar la onda.
@@ -540,7 +565,7 @@ class MainController(QObject):
             QMessageBox.warning(
                 None, 
                 "Acción no permitida", 
-                "Debe completar los 'Datos del ensayo' y presionar 'Crear Carpeta' antes de poder guardar los resultados."
+                "Debe completar los Datos del ensayo y Crear la Carpeta\n para poder guardar los resultados."
             )
             return
 
@@ -568,8 +593,12 @@ class MainController(QObject):
         inBuffer, waveform, dt = self.last_acquired_data
 
         # Definir nombre y guardar respaldo crudo (.bin)
+        if self.waveform_count == 0:
+            base_name = "Referencia"
+        else:
+            base_name = f"Onda_{self.waveform_count:02d}"
+            
         self.waveform_count += 1
-        base_name = f"Onda_{self.waveform_count:02d}"
 
         bin_path = self.fm.get_new_name(prefijo=base_name, extension=".bin")
         self.fm.create_bin_int16(inBuffer, bin_path)
@@ -593,7 +622,11 @@ class MainController(QObject):
             self.fm.create_csv(analyzer.time_axis, analyzer.raw_voltage, csv_path)
 
             # Actualizar Interfaz.
-            self.ui.graph_name.setText(f"{base_name} ({waveform_type})")
+            if base_name == "Referencia":
+                self.ui.graph_name.setText(base_name)
+            else:
+                self.ui.graph_name.setText(f"{base_name} ({waveform_type})")
+
             QMessageBox.information(None, "Guardado", f"{base_name} guardada exitosamente.")
 
             # Generar color dinámico con pyqtgraph.
@@ -607,12 +640,12 @@ class MainController(QObject):
             self.saved_waves_data[base_name] = {
                 "t": t_data,
                 "y_real": analyzer.test_voltage_curve,
-                "y_norm": analyzer.norm_voltage,
+                "y_norm": analyzer.test_voltage_curve_norm,
                 "color": color,
                 "is_visible": True
             }
 
-            # Agregar el checkbox al menú desplegable
+            # Agregar el checkbox al menú desplegable.
             action = QAction(base_name, self)
             action.setCheckable(True)
             action.setChecked(True)

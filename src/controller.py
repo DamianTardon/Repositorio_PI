@@ -1,12 +1,32 @@
 import os
 import time
 import re
+import numpy as np
 from PySide6.QtCore import QObject, QThread, Signal, Slot, QRegularExpression, QTimer
 from PySide6.QtWidgets import QMessageBox, QFileDialog, QMenu
 from PySide6.QtGui import QRegularExpressionValidator, QIntValidator, QFont, QAction
 import pyqtgraph as pg
 
 DEBUG_MODE = os.environ.get("DEBUG_MODE", "True") == "True"
+
+class MockChannel2Analyzer:
+    """
+    Clase contenedora ligera para el CH2. 
+    Almacena la onda multiplicada por sus atenuadores para graficar y guardar
+    sin calcular los parámetros del impulso (T1, T2, etc.).
+    """
+    def __init__(self, waveform, dt):
+        self.raw_voltage = np.array(waveform)
+        self.time_axis = np.arange(len(self.raw_voltage)) * dt
+        self.aligned_time_axis = None
+        self.test_voltage_curve = self.raw_voltage
+        
+        # Normalización simple para que la vista 'normalizada' no falle
+        max_val = np.max(np.abs(self.test_voltage_curve))
+        if max_val != 0:
+            self.test_voltage_curve_norm = self.test_voltage_curve / max_val
+        else:
+            self.test_voltage_curve_norm = self.test_voltage_curve
 
 class WaitWaveformThread(QThread):
     # Hilo en segundo plano para esperar el disparo del osciloscopio sin congelar la GUI.
@@ -46,8 +66,11 @@ class MainController(QObject):
 
         # Variables de estado del ensayo.
         self.ref_analyzer = None
-        self.pending_analyzer = None
-        self.last_acquired_data = None
+        
+        # Ahora almacenan datos múltiples basados en el número de canal activo
+        self.pending_analyzers = {}  # { 1: info_ch1, 2: info_ch2 }
+        self.last_acquired_data = {} # { 1: (buffer, wave, real_wave, dt), 2: ... }
+        
         self.waveform_count = 0
         self.project_created = False    # Bandera de creación de carpeta.
 
@@ -162,19 +185,17 @@ class MainController(QObject):
         self.visibility_menu.addSeparator() # Agrega una línea separadora.
 
         # Definir el color y estilo para los textos.
-        text_color = '#000000'  # Negro
+        text_color = '#000000' # Negro
         label_style = {'color': text_color, 'font-size': '12pt', 'font-weight': 'bold'}
 
         # Crear la leyenda en la esquina superior derecha, con fondo blanco y borde negro.
         self.legend = self.ui.graph_view.addLegend(
             offset=(10, 10),
-            brush=pg.mkBrush(255, 255, 255, 255),  # Fondo blanco.
-            pen=pg.mkPen(color='k', width=1)       # Borde negro de 1px.
+            brush=pg.mkBrush(255, 255, 255, 255), # Fondo blanco.
+            pen=pg.mkPen(color='k', width=1)      # Borde negro de 1px.
         )
-
         # Establecer el valor Z para que la leyenda esté por encima de las curvas.
         self.legend.setZValue(10)
-
         # Configurar la tipografía de la leyenda.
         self.legend.setLabelTextColor(text_color)
         self.legend.setLabelTextSize('11pt')
@@ -186,7 +207,6 @@ class MainController(QObject):
 
         # Color de los números (ticks) y la línea del eje.
         axis_pen = pg.mkPen(color=text_color)
-
         bottom_axis = self.ui.graph_view.getAxis('bottom')
         bottom_axis.setTextPen(axis_pen)
         bottom_axis.setPen(axis_pen)
@@ -240,10 +260,10 @@ class MainController(QObject):
         self.ui.trigger_edge_negative.toggled.connect(lambda checked: self.osc.set_trigger_slope(1) if checked else None)
 
         # Validadores en tiempo real para Atenuaciones y reprocesamiento automático.
-        self.ui.ch1_resistive_divider_value.editingFinished.connect(lambda: self._on_attenuation_changed(self.ui.ch1_resistive_divider_value, "Divisor resistivo (CH1)"))
-        self.ui.ch1_attenuator_value.editingFinished.connect(lambda: self._on_attenuation_changed(self.ui.ch1_attenuator_value, "Atenuador (CH1)"))
-        self.ui.ch2_resistive_divider_value.editingFinished.connect(lambda: self._on_attenuation_changed(self.ui.ch2_resistive_divider_value, "Divisor resistivo (CH2)"))
-        self.ui.ch2_attenuator_value.editingFinished.connect(lambda: self._on_attenuation_changed(self.ui.ch2_attenuator_value, "Atenuador (CH2)"))
+        self.ui.ch1_resistive_divider_value.editingFinished.connect(lambda: self._on_attenuation_changed(self.ui.ch1_resistive_divider_value, "Divisor resistivo (CH1)", 1))
+        self.ui.ch1_attenuator_value.editingFinished.connect(lambda: self._on_attenuation_changed(self.ui.ch1_attenuator_value, "Atenuador (CH1)", 1))
+        self.ui.ch2_resistive_divider_value.editingFinished.connect(lambda: self._on_attenuation_changed(self.ui.ch2_resistive_divider_value, "Divisor resistivo (CH2)", 2))
+        self.ui.ch2_attenuator_value.editingFinished.connect(lambda: self._on_attenuation_changed(self.ui.ch2_attenuator_value, "Atenuador (CH2)", 2))
 
         # Handlers para los Radio Buttons del tipo de gráfico.
         self.ui.normalized_type_radio.toggled.connect(self._on_graph_type_changed)
@@ -260,23 +280,22 @@ class MainController(QObject):
             else:
                 line_edit.setText("") # Deja en blanco si no se pudo calcular
 
-        set_val(self.ui.peak_voltage_value, "Ut", 1/1000.0) # kV
-        set_val(self.ui.t1_value, "T1", 1e6) # µs
-        set_val(self.ui.t2_value, "T2", 1e6) # µs
-        set_val(self.ui.os_value, "Beta_prime", 1.0) # %
+        set_val(self.ui.peak_voltage_value, "Ut", 1/1000.0)
+        set_val(self.ui.t1_value, "T1", 1e6)
+        set_val(self.ui.t2_value, "T2", 1e6)
+        set_val(self.ui.os_value, "Beta_prime", 1.0)
 
     def _on_graph_type_changed(self):
         # Actualiza el gráfico según lo que elija el usuario: "real" o "normalizado".
-        self._update_plot(self.pending_analyzer, is_successful=True)
+        self._update_plot()
 
-    def _update_plot(self, analyzer, is_successful=True):
+    def _update_plot(self):
         # Título del gráfico basado en el número de ítem.
         item_num = self.ui.item_number_value.text().strip()
         item_year = self.ui.item_year_value.text().strip()
         graph_title = f"{item_num}-{item_year}"
 
-        self.ui.graph_view.clear()  # Limpia el lienzo en cada actualización
-
+        self.ui.graph_view.clear() # Limpia el lienzo en cada actualización.
         text_color = '#000000'
         label_style = {'color': text_color, 'font-size': '12pt', 'font-weight': 'bold'}
         # Bandera para seleccionar datos según el Radio Button activo.
@@ -289,75 +308,72 @@ class MainController(QObject):
                 pen = pg.mkPen(color=wave["color"], width=2)
                 self.ui.graph_view.plot(wave["t"], y_data, name=name, pen=pen)
 
-        # Graficar la última onda, no guardada.
-        if analyzer is not None:
+        # Graficar las ondas actuales en el buffer (CH1 y/o CH2).
+        has_pending = False
+        for ch, info in self.pending_analyzers.items():
+            has_pending = True
+            analyzer = info["analyzer"]
+            is_successful = info["success"]
+
             # Seleccionar el eje de tiempo adecuado (usa el alineado si existe).
-            if analyzer.aligned_time_axis is not None:
-                t_axis = analyzer.aligned_time_axis
-            else:
-                t_axis = analyzer.time_axis
+            t_axis = analyzer.aligned_time_axis if analyzer.aligned_time_axis is not None else analyzer.time_axis
 
             if is_successful:
-                if is_normalized:
-                    y_data = analyzer.test_voltage_curve_norm
+                y_data = analyzer.test_voltage_curve_norm if is_normalized else analyzer.test_voltage_curve
+                if ch == 1:
+                    pen_color = (0, 100, 200) # Azul para CH1
+                    legend_name = "Actual (CH1)"
                 else:
-                    y_data = analyzer.test_voltage_curve
-                pen_color = (0, 100, 200)
-                legend_name = "Actual"
+                    pen_color = (0, 150, 0) # Verde oscuro para CH2
+                    legend_name = "Actual (CH2)"
             else:
                 y_data = analyzer.raw_voltage
-                pen_color = (200, 0, 0)
-                legend_name = "Error"
-                # Dibujar la curva en el lienzo.
+                pen_color = (200, 0, 0) # Rojo para error
+                legend_name = f"Error (CH{ch})"
+            # Dibujar la curva en el lienzo.
             if t_axis is not None and y_data is not None:
                 pen = pg.mkPen(color=pen_color, width=3) # Más gruesa para destacar.
                 self.ui.graph_view.plot(t_axis, y_data, name=legend_name, pen=pen)
-                self.ui.graph_view.setTitle("Onda sin guardar", color=text_color, size='14pt', bold=True)
+
+        if has_pending:
+            self.ui.graph_view.setTitle("Onda(s) sin guardar", color=text_color, size='14pt', bold=True)
         else:
             self.ui.graph_view.setTitle(graph_title, color=text_color, size='14pt', bold=True)
 
         # Actualizar etiquetas de ejes.
         if is_normalized:
-            self.ui.graph_view.setLabel('left', 'Tensión Normalizada', units='p.u.', **label_style)
+            self.ui.graph_view.setLabel('left', 'Tensión / Magnitud Normalizada', units='p.u.', **label_style)
         else:
-            self.ui.graph_view.setLabel('left', 'Tensión', units='V', **label_style)
+            self.ui.graph_view.setLabel('left', 'Tensión / Magnitud', units='V / A', **label_style)
 
     def load_tdg_waveform(self):
-        import numpy as np
-
         # Abrir explorador de archivos.
         file_path, _ = QFileDialog.getOpenFileName(
-            None, 
-            "Seleccionar onda de calibración (TDG)", 
-            "", 
-            "Archivos de texto (*.txt *.dat *.csv);;Todos los archivos (*)"
+            None,
+             "Seleccionar onda de calibración (TDG)",
+             "",
+             "Archivos de texto (*.txt *.dat *.csv);;Todos los archivos (*)"
         )
-
         if not file_path:
-            return  # El usuario cerró la ventana sin elegir nada.
+            return # El usuario cerró la ventana sin elegir nada.
 
         try:
             # Leer el archivo usando la función de file_manager.py
             metadata, data_list = self.fm.read_TDG_file(file_path)
-
             # Extraer dt y convertir la lista de tensión a un array de NumPy.
             dt = metadata['sampling_period']
-            print(f"dt: {dt}")
             waveform = np.array(data_list)
-
             # Crear un inBuffer ficticio para que no falle al probar el botón de Guardar.
             inBuffer = b'DATOS_DE_CALIBRACION_TDG'
-            self.last_acquired_data = (inBuffer, waveform, dt)
 
-            # Determinar el canal activo y aplicar las atenuaciones.
+            # Simula leer en el canal principal activo.
             active_channel = 1 if self.ui.ch1_enabler.isChecked() else (2 if self.ui.ch2_enabler.isChecked() else 1)
             real_waveform = self._apply_hardware_attenuations(waveform, active_channel)
 
-            # Enviar la onda al flujo de análisis y graficación.
-            self._run_analysis_and_plot(waveform, dt)
+            self.last_acquired_data = {}
+            self.last_acquired_data[active_channel] = (inBuffer, waveform, real_waveform, dt)
 
-            # Opcional: Mostrar en consola qué archivo se cargó.
-            print(f"Archivo cargado: {metadata.get('wave_name', 'Desconocido')}")
+            self._process_and_plot_acquired_data()
 
         except Exception as e:
             QMessageBox.critical(None, "Error de Lectura", f"No se pudo cargar el archivo:\n{str(e)}")
@@ -366,7 +382,6 @@ class MainController(QObject):
 
     def search_manual_instrument(self):
         import pyvisa
-
         # Comprobar si el objeto existe y está activo.
         if self.osc.dso is not None:
             try:
@@ -395,7 +410,6 @@ class MainController(QObject):
         if found_instruments:
             port = found_instruments[0]
             self.osc.connect(port)
-
             # Verificar el estado de la conexión.
             if self.osc.dso is not None:
                 self.synchronize_instrument()
@@ -411,7 +425,7 @@ class MainController(QObject):
         item_year = self.ui.item_year_value.text().strip()
         client = self.ui.client_value.text().strip()
 
-        # Validar que ningun campos esté vacío.
+        # Validar que ningún campos esté vacío.
         if not item_num or not item_year:
             QMessageBox.warning(
                 None,
@@ -427,6 +441,7 @@ class MainController(QObject):
 
         # Si los datos están completos, crea el nombre de la carpeta.
         folder_name = f"{item_num}-{item_year}"
+        # Si el campo cliente está completo, lo agrega al nombre de la carpeta.
         if client:
             folder_name += f" - {client}"
 
@@ -438,21 +453,19 @@ class MainController(QObject):
             QFileDialog.ShowDirsOnly | QFileDialog.DontResolveSymlinks
         )
 
-        # Si el usuario cierra la ventana o presiona cancelar, abortamos.
+        
+        # Si el usuario cierra la ventana o presiona cancelar, aborta la operación.
         if not base_dir:
             return
 
         # Validación de carpeta existente.
         full_path = os.path.join(base_dir, folder_name)
-        
         if os.path.exists(full_path):
             QMessageBox.warning(
                 None,
                 "Carpeta Existente",
-                f"La carpeta '{folder_name}' ya existe en el directorio seleccionado.\n\n"
-                f"Por favor, elija otra ubicación o modifique los datos del ensayo,\n"
-                f"para no sobrescribir la información."
-            )
+                f"La carpeta '{folder_name}' ya existe.\n"
+                f"Elija otra ubicación.")
             return
 
         # Crear la estructura en el directorio seleccionado por el usuario.
@@ -464,12 +477,8 @@ class MainController(QObject):
         self.ui.graph_name.setText("Ensayo inicializado")
         self.project_created = True # Habilita el guardado de ondas.
 
-        # Mostrar mensaje de éxito con la ruta completa usando os.path.
-        full_path = os.path.join(base_dir, folder_name)
-
         # Normalizar las barras invertidas para que se lea mejor en Windows.
         full_path_display = os.path.normpath(full_path)
-
         QMessageBox.information(None, "Éxito", f"Carpeta creada correctamente en:\n\n{full_path_display}")
 
     def receive_waveform(self):
@@ -477,7 +486,7 @@ class MainController(QObject):
             QMessageBox.warning(None, "Error", "El osciloscopio no está conectado.")
             return
 
-        # Si el hilo ya está corriendo, el botón actúa como "Cancelar"
+        # Si el hilo ya está corriendo, el botón actúa como "Cancelar".
         if self.wait_thread and self.wait_thread.isRunning():
             self.wait_thread.stop()
             self.ui.btn_wait_waveform.setText("Iniciar")
@@ -485,14 +494,11 @@ class MainController(QObject):
 
         # Configurar estado de espera.
         self.ui.btn_wait_waveform.setText("Cancelar")
-
         self.wait_thread = WaitWaveformThread(self.osc)
         self.wait_thread.wave_detected.connect(self.process_waveform)
         self.wait_thread.error_occurred.connect(self._handle_thread_error)
-        
         # Restaura el botón de captura de onda, luego de la cancelación.
         self.wait_thread.finished.connect(lambda: self.ui.btn_wait_waveform.setText("Iniciar"))
-        
         self.wait_thread.start()
 
     @Slot()
@@ -500,64 +506,85 @@ class MainController(QObject):
         self.ui.btn_wait_waveform.setEnabled(True)
         self.ui.btn_wait_waveform.setText("Iniciar")
 
-        # Determinar canal activo principal.
-        active_channel = 1 if self.ui.ch1_enabler.isChecked() else (2 if self.ui.ch2_enabler.isChecked() else None)
+        # Determinar los canales activos.
+        ch1_active = self.ui.ch1_enabler.isChecked()
+        ch2_active = self.ui.ch2_enabler.isChecked()
 
-        if active_channel is None:
+        if not ch1_active and not ch2_active:
             QMessageBox.warning(None, "Cuidado", "Se detectó disparo, pero no hay canales habilitados para leer.")
             return
 
-        # Descargar bloque de datos.
-        inBuffer, waveform, dt = self.osc.get_block_data(active_channel)
-        if waveform is None:
-            return
+        self.last_acquired_data = {}
 
-        # Guardar temporalmente hasta que el usuario accione el botón Guardar.
-        self.last_acquired_data = (inBuffer, waveform, dt)
+        # Capturar ambos canales si están activos.
+        if ch1_active:
+            inBuffer, waveform, dt = self.osc.get_block_data(1)
+            # Invertir atenuaciones del sistema para determinar el valor real de la onda.
+            # Guardar temporalmente hasta que el usuario accione el botón Guardar.
+            if waveform is not None:
+                real_waveform = self._apply_hardware_attenuations(waveform, 1)
+                self.last_acquired_data[1] = (inBuffer, waveform, real_waveform, dt)
+        if ch2_active:
+            inBuffer, waveform, dt = self.osc.get_block_data(2)
+            if waveform is not None:
+                real_waveform = self._apply_hardware_attenuations(waveform, 2)
+                self.last_acquired_data[2] = (inBuffer, waveform, real_waveform, dt)
 
-        # Invertir atenuaciones del sistema para determinar el valor real de la onda.
-        real_waveform = self._apply_hardware_attenuations(waveform, active_channel)
+        self._process_and_plot_acquired_data()
 
-        # Análisis y graficado de la onda.
-        self._run_analysis_and_plot(real_waveform, dt)
+    def _process_and_plot_acquired_data(self):
+        self.pending_analyzers = {}
+        
+        ch1_active = 1 in self.last_acquired_data
+        ch2_active = 2 in self.last_acquired_data
 
-    def _run_analysis_and_plot(self, waveform, dt):
-        # Instanciar analizador para mostrar valores.
-        temp_analyzer = self.AnalyzerClass(waveform, dt, sigma_fit=1.0)
+        if ch1_active:
+            _, _, real_waveform, dt = self.last_acquired_data[1]
+            temp_analyzer = self.AnalyzerClass(real_waveform, dt, sigma_fit=1.0)
+            try:
+                if self.ref_analyzer is None:
+                    temp_analyzer.ref_lightning_impulse()
+                else:
+                    temp_analyzer.lightning_impulse(self.ref_analyzer)
+                
+                # Procesó la onda exitosamente.
+                # Guardar el analizador exitoso y actualiza la GUI.
+                self._update_results_gui(temp_analyzer)
+                self.pending_analyzers[1] = {"analyzer": temp_analyzer, "success": True}
 
-        try:
-            if self.ref_analyzer is None:
-                temp_analyzer.ref_lightning_impulse()
-            else:
-                temp_analyzer.lightning_impulse(self.ref_analyzer)
+            except ValueError as e:
+                # Ocurrió algún problema al procesar la onda.
+                # Capturar errores de análisis (Onda corta, ruido, etc.).
+                # Actualiza los valores parciales calculados.
+                # Indica que falló la matemática.
+                self._update_results_gui(temp_analyzer)
+                self.pending_analyzers[1] = {"analyzer": temp_analyzer, "success": False}
+                QMessageBox.warning(None, "Advertencia de Análisis CH1", str(e))
 
-            # Procesó la onda exitosamente.
-            # Guardar el analizador exitoso y actualiza la GUI.
-            self._update_results_gui(temp_analyzer)
-            self.pending_analyzer = temp_analyzer 
-            self._update_plot(temp_analyzer, is_successful=True)
+            except Exception as e:
+                # Captura y muestra fallos críticos inesperados.
+                self._update_results_gui(temp_analyzer)
+                self.pending_analyzers[1] = {"analyzer": temp_analyzer, "success": False}
+                QMessageBox.critical(
+                    None,
+                    "Error Crítico de Análisis CH1",
+                    "Ocurrió un error inesperado al calcular los parámetros de la onda."
+                )
 
-        except ValueError as e:
-            # Ocurrió algún problema al procesar la onda.
-            # Capturar errores de análisis (Onda corta, ruido, etc.).
-            # Actualiza los valores parciales calculados.
-            # Indica que falló la matemática.
-            self._update_results_gui(temp_analyzer)
-            self.pending_analyzer = None
-            self._update_plot(temp_analyzer, is_successful=False)
-            QMessageBox.warning(None, "Advertencia de Análisis", str(e))
+        else:
+            # Si CH1 no corrió, limpiamos el panel de resultados
+            self.ui.peak_voltage_value.setText("")
+            self.ui.t1_value.setText("")
+            self.ui.t2_value.setText("")
+            self.ui.os_value.setText("")
 
-        except Exception as e:
-            # Captura y muestra fallos críticos inesperados.
-            self._update_results_gui(temp_analyzer)
-            self.pending_analyzer = None
-            self._update_plot(temp_analyzer, is_successful=False)
-            QMessageBox.critical(
-                None, 
-                "Error Crítico de Análisis", 
-                f"Ocurrió un error inesperado al calcular los parámetros de la onda.\n"
-                f"Intente capturar nuevamente la onda o reinicie el programa."
-            )
+        if ch2_active:
+            _, _, real_waveform, dt = self.last_acquired_data[2]
+            # CH2 no hace matemática, solo es un contenedor adaptado para graficar
+            temp_analyzer2 = MockChannel2Analyzer(real_waveform, dt)
+            self.pending_analyzers[2] = {"analyzer": temp_analyzer2, "success": True}
+
+        self._update_plot()
 
     def save_waveform(self):
         # Validar que la carpeta exista antes de guardar la onda.
@@ -578,11 +605,7 @@ class MainController(QObject):
 
         # all() verifica que ninguna de las cadenas de texto esté vacía ("").
         if not all([t_bs, t_bh, hr, ha, pres]):
-            QMessageBox.warning(
-                None,
-                "Condiciones Ambientales Incompletas",
-                "Por favor, complete todos los campos de las 'Condiciones ambientales' antes de guardar el ensayo."
-            )
+            QMessageBox.warning(None, "Condiciones Incompletas", "Complete todos los campos de las 'Condiciones ambientales' antes de guardar.")
             return
 
         # Validar que haya datos capturados para guardar.
@@ -590,54 +613,64 @@ class MainController(QObject):
             QMessageBox.warning(None, "Aviso", "No hay ninguna onda adquirida en memoria para guardar.")
             return
 
-        inBuffer, waveform, dt = self.last_acquired_data
+        ch1_active = 1 in self.last_acquired_data
+        ch2_active = 2 in self.last_acquired_data
+        both_active = ch1_active and ch2_active
 
-        # Definir nombre y guardar respaldo crudo (.bin)
+        # Definir nombre de la onda.
         if self.waveform_count == 0:
-            base_name = "Referencia"
+            base_name_str = "Referencia"
         else:
-            base_name = f"Onda_{self.waveform_count:02d}"
-            
-        self.waveform_count += 1
+            base_name_str = f"Onda_{self.waveform_count:02d}"
 
-        bin_path = self.fm.get_new_name(prefijo=base_name, extension=".bin")
+        self.waveform_count += 1
+        saved_names = []
+
+        if ch1_active:
+            name_ch1 = f"{base_name_str}_V" if both_active else base_name_str
+            self._save_single_channel(1, name_ch1)
+            saved_names.append(name_ch1)
+
+        if ch2_active:
+            name_ch2 = f"{base_name_str}_A" if both_active else base_name_str
+            self._save_single_channel(2, name_ch2)
+            saved_names.append(name_ch2)
+
+        self.ui.graph_name.setText(" / ".join(saved_names))
+        QMessageBox.information(None, "Guardado", f"{', '.join(saved_names)} guardada(s) exitosamente.")
+
+        # Limpiar
+        self.last_acquired_data = {}
+        self.pending_analyzers = {}
+        self._update_plot()
+
+    def _save_single_channel(self, channel, save_name):
+        inBuffer, waveform, real_waveform, dt = self.last_acquired_data[channel]
+        analyzer_info = self.pending_analyzers.get(channel)
+
+        bin_path = self.fm.get_new_name(prefijo=save_name, extension=".bin")
         self.fm.create_bin_int16(inBuffer, bin_path)
 
-        # Verificar si hay datos procesados para exportar (.h5 y .csv)
-        if self.pending_analyzer is not None:
-            analyzer = self.pending_analyzer
+        if analyzer_info and analyzer_info["success"]:
+            analyzer = analyzer_info["analyzer"]
 
-            # Consolidar la referencia si es la primera onda.
-            if self.ref_analyzer is None:
+            if channel == 1 and self.waveform_count == 1:
                 self.ref_analyzer = analyzer
-                waveform_type = "Referencia"
-            else:
-                waveform_type = "Ensayo"
 
-            # Guardar archivos procesados usando los datos del analizador.
-            h5_path = self.fm.get_new_name(prefijo=base_name, extension=".h5")
+            # Guardar toda la información de la onda.
+            h5_path = self.fm.get_new_name(prefijo=save_name, extension=".h5")
             self.fm.create_hdf5(analyzer.time_axis, analyzer.raw_voltage, h5_path)
 
-            csv_path = self.fm.get_new_name(prefijo=base_name, extension=".csv")
+            # Guardar resultados del análisis.
+            csv_path = self.fm.get_new_name(prefijo=save_name, extension=".csv")
             self.fm.create_csv(analyzer.time_axis, analyzer.raw_voltage, csv_path)
 
-            # Actualizar Interfaz.
-            if base_name == "Referencia":
-                self.ui.graph_name.setText(base_name)
-            else:
-                self.ui.graph_name.setText(f"{base_name} ({waveform_type})")
-
-            QMessageBox.information(None, "Guardado", f"{base_name} guardada exitosamente.")
-
-            # Generar color dinámico con pyqtgraph.
-            # hues=15 indica cuántos colores distintos generar antes de dar la vuelta completa al círculo cromático.
-            # maxValue=200 oscurece un poco los colores para que se vean bien sobre fondo blanco.
             color = pg.intColor(self.color_index, hues=15, maxValue=200)
             self.color_index += 1
 
             t_data = analyzer.aligned_time_axis if analyzer.aligned_time_axis is not None else analyzer.time_axis
 
-            self.saved_waves_data[base_name] = {
+            self.saved_waves_data[save_name] = {
                 "t": t_data,
                 "y_real": analyzer.test_voltage_curve,
                 "y_norm": analyzer.test_voltage_curve_norm,
@@ -646,27 +679,19 @@ class MainController(QObject):
             }
 
             # Agregar el checkbox al menú desplegable.
-            action = QAction(base_name, self)
+            action = QAction(save_name, self)
             action.setCheckable(True)
             action.setChecked(True)
-            action.toggled.connect(lambda checked, n=base_name: self._toggle_wave_visibility(n, checked))
+            action.toggled.connect(lambda checked, n=save_name: self._toggle_wave_visibility(n, checked))
             self.visibility_menu.addAction(action)
 
         else:
-            # Si pending_analyzer es None, significa que la onda falló la matemática.
-            self.ui.graph_name.setText(f"{base_name} (Solo Respaldo)")
             QMessageBox.warning(
-                None, 
-                "Análisis Fallido (Respaldo Seguro)", 
-                f"El respaldo original se guardó correctamente como:\n{base_name}.bin\n\nSin embargo, la onda tuvo errores de cálculo, por lo que no se generaron archivos .h5 ni .csv."
+                None,
+                "Análisis Fallido",
+                f"El respaldo original de {save_name} se guardó como .bin\n",
+                f"Pero no se generaron archivos de análisis, ni de resultados."
             )
-
-        # Limpiar temporal y refrescar (la onda actual desaparece y reaparece como onda en el historial).
-        self.last_acquired_data = None
-        self.pending_analyzer = None
-        self._update_plot(None)
-
-    # --- Utilidades y Actualizadores de Hardware ---
 
     def _apply_hardware_attenuations(self, waveform, channel):
         if channel == 1:
@@ -680,12 +705,10 @@ class MainController(QObject):
 
     def _check_attenuation_value(self, line_edit, field_name):
         text = line_edit.text().strip()
-
         # Si el campo está vacío. Se asigna por defecto: 1.0.
         if not text:
             line_edit.setText("1.0")
             return
-
         try:
             val = float(text)
             if val <= 0:
@@ -695,21 +718,18 @@ class MainController(QObject):
             QMessageBox.warning(None, "Valor Inválido", f"El valor en '{field_name}' no es reconocido.\nSe restaurará a 1.0.")
             line_edit.setText("1.0")
 
-    def _on_attenuation_changed(self, line_edit, field_name):
+    def _on_attenuation_changed(self, line_edit, field_name, channel):
         # Valida que el texto ingresado sea correcto.
         self._check_attenuation_value(line_edit, field_name)
 
         # Si hay una onda guardada en la memoria temporal, la reprocesa inmediatamente.
-        if self.last_acquired_data is not None:
-            active_channel = 1 if self.ui.ch1_enabler.isChecked() else (2 if self.ui.ch2_enabler.isChecked() else 1)
-            inBuffer, waveform, dt = self.last_acquired_data
+        if channel in self.last_acquired_data:
+            inBuffer, waveform, _, dt = self.last_acquired_data[channel]
+            real_waveform = self._apply_hardware_attenuations(waveform, channel)
+            self.last_acquired_data[channel] = (inBuffer, waveform, real_waveform, dt)
 
-            # Recalcula aplicando los nuevos multiplicadores de la interfaz.
-            real_waveform = self._apply_hardware_attenuations(waveform, active_channel)
-
-            # Vuelve a correr el algoritmo Levenberg-Marquardt y redibuja el PlotWidget.
-            self._run_analysis_and_plot(real_waveform, dt)
-            print(f"Onda reprocesada con nueva atenuación en {field_name}")
+            # Reprocesa y grafica con el nuevo factor.
+            self._process_and_plot_acquired_data()
 
     def _toggle_attenuations(self):
         state = self.ui.attenuations_enabler.isChecked()
@@ -737,7 +757,6 @@ class MainController(QObject):
         else:
             val_str = self.ui.ch2_offset_value.text()
             unit_str = self.ui.ch2_offset_unit.currentText()
-
         scale = self.osc.process_multipliers(val_str, unit_str)
         if scale is not None:
             self.osc.set_channel_offset(channel, scale)
@@ -764,10 +783,8 @@ class MainController(QObject):
     def synchronize_instrument(self):
         if not self.osc.dso:
             return
-
         # Restablecer instrumento a valores de fábrica.
         self.osc.default_settings()
-
         # Espera 1500 ms para que procese el reinicio interno.
         QTimer.singleShot(1500, self._continue_synchronization)
 
@@ -818,32 +835,26 @@ class MainController(QObject):
         value_selector = self.ui.time_value
         current_value = value_selector.currentText()
         value_selector.blockSignals(True)
-
         try:
             value_selector.clear()
             valid_options = self.time_values.get(unit, ["1"])
             value_selector.addItems(valid_options)
-
             if current_value in valid_options:
                 value_selector.setCurrentText(current_value)
-
         finally:
             value_selector.blockSignals(False)
-
         self._update_t_scale()
 
     def _toggle_wave_visibility(self, name, checked):
         if name in self.saved_waves_data:
             self.saved_waves_data[name]["is_visible"] = checked
             # Refresca el gráfico manteniendo la onda actual si existe.
-            is_successful = self.pending_analyzer is not None
-            self._update_plot(self.pending_analyzer, is_successful=is_successful)
+            self._update_plot()
 
     def _set_all_waves_visibility(self, visible):
-        # Actualizar el estado lógico en la memoria RAM.
+        # Actualizar el estado de visibilidad de las odas.
         for name in self.saved_waves_data:
             self.saved_waves_data[name]["is_visible"] = visible
-
         # Sincronizar visualmente los tildes en el menú.
         for action in self.visibility_menu.actions():
             if action.isCheckable():
@@ -851,7 +862,4 @@ class MainController(QObject):
                 action.blockSignals(True)
                 action.setChecked(visible)
                 action.blockSignals(False)
-
-        # Refrescar el gráfico una sola vez al final.
-        is_successful = self.pending_analyzer is not None
-        self._update_plot(self.pending_analyzer, is_successful=is_successful)
+        self._update_plot()

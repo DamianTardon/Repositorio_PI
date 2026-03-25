@@ -139,6 +139,9 @@ class FileManager:
 
             metadata['sampling_period'] = float(f.readline().strip())
 
+            rate_calc = 1 / metadata['sampling_period'] / 1e6 # MSa/s.
+            metadata['rate'] = f"{rate_calc:.0f} MSa/s"
+
             for line in f:
                 if line.strip():
                     data.append(float(line.strip()))

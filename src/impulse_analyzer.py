@@ -3,6 +3,14 @@ from scipy.optimize import curve_fit
 from scipy import signal
 import warnings
 
+# --- Metadata del software (IEC 61083-2 Sec. 7) ------------------------------------------------------------------------
+__app_name__ = "Analizador de Impulsos de Alta Tensión"
+__version__ = "1.0.0"
+__release_date__ = "2026-03-24"
+__algorithms_supported__ = ["Full Lightning Impulse (LI)", "Chopped Lightning Impulse (LIC)"]
+__parameters_validated__ = ["Valor Pico (Ut)", "Tiempo de Frente (T1)", "Tiempo de Cola (T2)", "Sobrepasamiento (OS)"]
+# -----------------------------------------------------------------------------------------------------------------------
+
 class LightningImpulseAnalyzer:
     def __init__(self, voltage_data, sampling_period, sigma_fit):
         # Validaciones de seguridad:

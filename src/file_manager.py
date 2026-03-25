@@ -4,6 +4,7 @@ import pandas as pd
 import h5py
 import numpy as np
 import struct
+import os
 
 class FileManager:
     # Constante de cuantización vertical del ADC específica del modelo GWInstekGDS1000AU.
@@ -32,52 +33,31 @@ class FileManager:
         self._create_structure()
 
     def _create_structure(self):
-        # Crea la carpeta si no existe. Y no hace nada si ya existe.
+        # Crea la carpeta si no existe. Y si ya existe no hace nada.
         for carpeta in [self.raw, self.analysis, self.results]:
             carpeta.mkdir(parents=True, exist_ok=True)
             #print(f"Verificado: {carpeta}")
 
-    def get_new_name(self, prefijo="medicion", extension=".bin"):
-        # Genera una ruta con timestamp para no sobrescribir nunca.
-        timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
-        nombre = f"{prefijo}_{timestamp}{extension}"
-        
+    def get_new_filename(self, filename, extension=".bin"):
+        # Asegura que el nombre termine con la extensión solicitada
+        if not filename.endswith(extension):
+            filename = f"{filename}{extension}"
+
         if extension == ".bin":
-            return self.raw / nombre
+            return self.raw / filename
         elif extension == ".h5":
-            return self.analysis / nombre
-        elif extension == ".png" or extension == ".pdf" or extension == ".csv":
-            return self.results / nombre
+            return self.analysis / filename
+        elif extension in [".png", ".pdf", ".csv"]:
+            return self.results / filename
         else:
-            return self.base / nombre
+            return self.base / filename
         
-    # Crear BIN (int16): para guardar datos originales como copia de seguridad.
     @staticmethod
     def create_bin_int16(data, file_path):
+    # Crear BIN (int16): para guardar datos originales como copia de seguridad.
         with open(file_path, "wb") as f:
             f.write(data)
             #print(f"Se creó '{file_path}'")
-
-    # Crear HDF5: para almacenamiento principal y procesamiento.
-    @staticmethod
-    def create_hdf5(time, ch1, file_path):
-        # Guarda los resultados intermedios del procesamiento de la onda en formato HDF5.
-        with h5py.File(file_path, "w") as f:
-            f.create_dataset("Tiempo [s]", data=time, compression="gzip")
-            f.create_dataset("Tensión [V]", data=ch1, compression="gzip")
-        #print(f"Se creó '{file_path}'")
-
-    # Crear CSV: para exportar datos.
-    @staticmethod
-    def create_csv(time, tension, file_path):
-        # Crear el DataFrame con Nombres de Columnas.
-        df = pd.DataFrame({
-            "Tiempo [s]": time,
-            "Tensión [V]": tension
-        })
-        # float_format='%.4E' guarda en notación científica (ej: 1.2345E-03).
-        df.to_csv(file_path, index=False, sep=',', float_format='%.4E')
-        print(f"Se creó '{file_path}'")
 
     @staticmethod
     def read_bin_without_header(file_path):
@@ -120,9 +100,9 @@ class FileManager:
 
             raw_data = np.frombuffer(raw_bytes, dtype='>i2')
             waveform = raw_data / 25.0
-            
+
         return waveform, dt
-    
+
     @staticmethod
     def read_csv(file_path):
         # 'usecols' leer SOLAMENTE esa columna.
@@ -164,3 +144,179 @@ class FileManager:
                     data.append(float(line.strip()))
 
         return metadata, data
+
+    def get_existing_wave_count(self, h5_file_path):
+        # Leer el archivo HDF5 del ensayo y devolver la cantidad de ondas guardadas.
+        if not os.path.exists(h5_file_path):
+            return 0, 0
+
+        # Contar la cantidad de ondas registradas.
+        with h5py.File(h5_file_path, 'r') as f:
+            waves = [k for k in f.keys() if k.startswith("Onda")]
+            refs = [k for k in f.keys() if k.startswith("Referencia")]
+            return len(waves), len(refs)
+
+    @staticmethod
+    def _save_dataset(group, name, data):
+        if data is not None:
+            if name in group:
+                del group[name]
+            group.create_dataset(name, data=data, compression="gzip", compression_opts=4)
+
+    def append_to_hdf5(self, file_path, wave_name, global_data, wave_data, time_data, ch1_data, ch2_data=None):
+        # Guardar los datos de la onda con la estructura jerárquica: /Time, /CH1_Voltage, /CH2_Current.
+        with h5py.File(file_path, 'a') as f:
+
+            # Atributos globales.
+            for key, value in global_data.items():
+                f.attrs[key] = value
+
+            # Grupo principal de la onda.
+            # Retornar el grupo o crealo si no existe.
+            grp_waveform = f.require_group(wave_name)
+
+            # wave_data tiene los atributos: Fecha, Condiciones atmosféricas, Parámetros de la onda.
+            for key, value in wave_data.items():
+                grp_waveform.attrs[key] = np.nan if value is None else value
+
+            # Grupo Tiempo.
+            grp_time = grp_waveform.require_group("Time")
+            self._save_dataset(grp_time, "raw_time", time_data.get("raw"))
+            self._save_dataset(grp_time, "aligned_time", time_data.get("aligned"))
+
+            # Grupo CH1 - Tension.
+            grp_ch1 = grp_waveform.require_group("CH1_Voltage")
+            self._save_dataset(grp_ch1, "raw_voltage", ch1_data.get("raw"))
+            self._save_dataset(grp_ch1, "test_voltage", ch1_data.get("test"))
+            self._save_dataset(grp_ch1, "norm_voltage", ch1_data.get("norm"))
+
+            # Grupo CH2 - Corriente (Opcional).
+            if ch2_data is not None:
+                grp_ch2 = grp_waveform.require_group("CH2_Current")
+                self._save_dataset(grp_ch2, "raw_current", ch2_data.get("raw"))
+                self._save_dataset(grp_ch2, "test_current", ch2_data.get("test"))
+                self._save_dataset(grp_ch2, "norm_current", ch2_data.get("norm"))
+    
+    def read_hdf5_waveforms(self, file_path):
+        # Leer el archivo HDF5 para recuperar los datos guardados.
+        global_attrs = {}
+        waves_data = {}
+
+        if not os.path.exists(file_path):
+            return global_attrs, waves_data
+
+        with h5py.File(file_path, 'r') as f:
+            # Extraer atributos globales (Cliente, Divisores, etc.)
+            for key, val in f.attrs.items():
+                global_attrs[key] = val.decode('utf-8') if isinstance(val, bytes) else val
+
+            # Identificar y ordenar las ondas cronológicamente.
+            wave_keys = sorted([k for k in f.keys() if k.startswith("Referencia") or k.startswith("Onda")])
+
+            # Extraer arrays de tiempo y tensión/corriente.
+            for w_name in wave_keys:
+                grp = f[w_name]
+
+                # Extraer tiempos.
+                grp_time = grp.get("Time")
+                if grp_time is None: continue
+
+                t_raw = grp_time["raw_time"][:] if "raw_time" in grp_time else None
+                t_aligned = grp_time["aligned_time"][:] if "aligned_time" in grp_time else None
+                t_plot = t_aligned if t_aligned is not None else t_raw
+
+                # Extraer tensiones del Canal 1.
+                grp_ch1 = grp.get("CH1_Voltage")
+                if grp_ch1 is None: continue
+
+                ch1_raw = grp_ch1["raw_voltage"][:] if "raw_voltage" in grp_ch1 else None
+                ch1_test = grp_ch1["test_voltage"][:] if "test_voltage" in grp_ch1 else None
+                ch1_norm = grp_ch1["norm_voltage"][:] if "norm_voltage" in grp_ch1 else None
+                ch1_real = ch1_test if ch1_test is not None else ch1_raw
+
+                # Extraer corrientes del Canal 2 (Opcional).
+                grp_ch2 = grp.get("CH2_Current")
+                ch2_real = None
+                ch2_norm = None
+                if grp_ch2 is not None:
+                    ch2_raw = grp_ch2["raw_current"][:] if "raw_current" in grp_ch2 else None
+                    ch2_test = grp_ch2["test_current"][:] if "test_current" in grp_ch2 else None
+                    ch2_norm = grp_ch2["norm_current"][:] if "norm_current" in grp_ch2 else None
+                    ch2_real = ch2_test if ch2_test is not None else ch2_raw
+
+                if t_plot is not None and ch1_real is not None:
+                    waves_data[w_name] = {
+                        "t": t_plot,
+                        "ch1_real": ch1_real,
+                        "ch1_norm": ch1_norm,
+                        "ch2_real": ch2_real,
+                        "ch2_norm": ch2_norm
+                    }
+
+        return global_attrs, waves_data
+
+    def export_hdf5_results_to_dataframe(self, file_path):
+        # Verificar si existe el archivo que contiene la información de las ondas.
+        if not os.path.exists(file_path):
+            return None
+
+        data_list = []
+        with h5py.File(file_path, 'r') as f:
+            # Extraer el ítem global.
+            item_name = f.attrs.get("Item", "Desconocido")
+
+            # Filtrar las Referencias y tomar solo las ondas de ensayo.
+            wave_keys = sorted([k for k in f.keys() if k.startswith("Onda")])
+
+            for wave_name in wave_keys:
+                grp = f[wave_name]
+
+                # Polaridad.
+                polarity = grp.attrs.get("Polarity", "N/A")
+                if pd.isna(polarity):
+                    polarity = "N/A"
+
+                # Escalado de unidades.
+                peak_voltage_v = grp.attrs.get("Peak_Voltage", np.nan)
+                peak_voltage_kv = round(peak_voltage_v / 1e3 , 2) if not pd.isna(peak_voltage_v) else np.nan
+
+                t1_s = grp.attrs.get("T1", np.nan)
+                t1_us = round(t1_s * 1e6, 2) if not pd.isna(t1_s) else np.nan
+
+                t2_s = grp.attrs.get("T2", np.nan)
+                t2_us = round(t2_s * 1e6, 2) if not pd.isna(t2_s) else np.nan
+
+                # Formato de sobrepasamiento.
+                overshoot_val = grp.attrs.get("Overshoot", np.nan)
+                if pd.isna(overshoot_val):
+                    overshoot_str = "N/A"
+                else:
+                    overshoot_str = f"{overshoot_val:.2f}%"
+
+                # Condiciones ambientales.
+                t_db = grp.attrs.get("T_DB", np.nan)
+                t_wb = grp.attrs.get("T_WB", np.nan)
+                rh = grp.attrs.get("RH", np.nan)
+                ah = grp.attrs.get("AH", np.nan)
+                press = grp.attrs.get("Pressure", np.nan)
+
+                # Construir la fila.
+                data_list.append({
+                    "Ítem": item_name,
+                    "Nombre de onda": wave_name,
+                    "Polaridad": polarity,
+                    "Valor Pico [kV]": peak_voltage_kv,
+                    "T1 [µs]": t1_us,
+                    "T2 [µs]": t2_us,
+                    "Sobrepasamiento": overshoot_str,
+                    "Temp. Seca [°C]": t_db,
+                    "Temp. Húmeda [°C]": t_wb,
+                    "Humedad Rel. [%]": rh,
+                    "Humedad Abs. [g/m3]": ah,
+                    "Presión [hPa]": press
+                })
+
+        if not data_list:
+            return pd.DataFrame()
+
+        return pd.DataFrame(data_list)

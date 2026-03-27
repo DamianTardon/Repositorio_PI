@@ -4,7 +4,7 @@ from scipy import signal
 import warnings
 
 # --- Metadata del software (IEC 61083-2 Sec. 7) ------------------------------------------------------------------------
-__app_name__ = "Analizador de Impulsos de Alta Tensión"
+__app_name__ = "Analizador de Impulsos atmosféricos tipo rayo (1.2/50 us)."
 __version__ = "1.0.0"
 __release_date__ = "2026-03-24"
 __algorithms_supported__ = ["Full Lightning Impulse (LI)", "Chopped Lightning Impulse (LIC)"]
@@ -72,7 +72,7 @@ class LightningImpulseAnalyzer:
             "Ut": None,
             "T1": None,
             "T2": None,
-            "Beta_prime": None
+            "OS": None
         }
 
     def _remove_offset(self):
@@ -384,7 +384,7 @@ class LightningImpulseAnalyzer:
 
         Ut = np.abs(self.Ut)
         self.idx_peak_Ut = np.argmax(self.test_voltage_curve_abs)
-        self.results["Beta_prime"] = 100 * (self.peak_value - self.Ub) / self.peak_value
+        self.results["OS"] = 100 * (self.peak_value - self.Ub) / self.peak_value
 
         # Intentar calcular O1 y T1.
         try:

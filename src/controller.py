@@ -316,7 +316,7 @@ class MainController(QObject):
         set_val(self.ui.peak_voltage_value, "Ut", 1/1000.0)
         set_val(self.ui.t1_value, "T1", 1e6)
         set_val(self.ui.t2_value, "T2", 1e6)
-        set_val(self.ui.os_value, "Beta_prime", 1.0)
+        set_val(self.ui.os_value, "OS", 1.0)
 
     def _on_graph_type_changed(self):
         # Actualiza el gráfico según lo que elija el usuario: "real" o "normalizado".
@@ -825,7 +825,7 @@ class MainController(QObject):
             "Peak_Voltage": res.get("Ut"),
             "T1": res.get("T1"),
             "T2": res.get("T2"),
-            "Overshoot": res.get("Beta_prime")
+            "Overshoot": res.get("OS")
         }
 
         # Empaquetar Datos de Tiempo.

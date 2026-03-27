@@ -10,43 +10,60 @@ from file_manager import FileManager
 
 BASE_DIR = Path(__file__).resolve().parent.parent / 'Calibracion' / 'IEC61083_2'
 
-# Estructuras globales para guardar los resultados y la metadata para el reporte.
-SESSION_RESULTS_LI = []
-GLOBAL_TDG_META = {}
-
 def check_failures(res, case):
     # Función auxiliar para validar los parámetros y recolectar fallos.
     failures = []
 
     # Ut (Peak).
-    if res['Ut'] / 1e3 != pytest.approx(case.expected_peak, rel=case.tolerance_peak/100):
-        failures.append(f"-> Peak Error: Esperado {case.expected_peak}, Obtenido {res['Ut']/1e3:.4f}")
+    if res['Ut'] / 1e3 != pytest.approx(case.U_reference, rel=case.U_tolerance/100):
+        failures.append(f"-> Peak Error: Esperado {case.U_reference}, Obtenido {res['Ut']/1e3:.4f}")
 
     # T1.
-    if not np.isnan(case.expected_T1):
-        if res['T1'] * 1e6 != pytest.approx(case.expected_T1, rel=case.tolerance_T1/100):
-            failures.append(f"-> T1 Error: Esperado {case.expected_T1}, Obtenido {res['T1']*1e6:.4f}")
+    if not np.isnan(case.T1_reference):
+        if res['T1'] * 1e6 != pytest.approx(case.T1_reference, rel=case.T1_tolerance/100):
+            failures.append(f"-> T1 Error: Esperado {case.T1_reference}, Obtenido {res['T1']*1e6:.4f}")
 
     # T2 / Tc.
-    if not np.isnan(case.expected_T2):
-        if res['T2'] * 1e6 != pytest.approx(case.expected_T2, rel=case.tolerance_T2/100):
-            failures.append(f"-> T2/Tc Error: Esperado {case.expected_T2}, Obtenido {res['T2']*1e6:.4f}")
+    if not np.isnan(case.T2_reference):
+        if res['T2'] * 1e6 != pytest.approx(case.T2_reference, rel=case.T2_tolerance/100):
+            failures.append(f"-> T2/Tc Error: Esperado {case.T2_reference}, Obtenido {res['T2']*1e6:.4f}")
 
-    # Beta.
-    if not np.isnan(case.expected_beta):
-        if res['Beta_prime'] != pytest.approx(case.expected_beta, abs=case.tolerance_beta):
-            failures.append(f"-> Beta Error: Esperado {case.expected_beta}, Obtenido {res['Beta_prime']:.4f}")
-            
+    # OS.
+    if not np.isnan(case.OS_reference):
+        if res['OS'] != pytest.approx(case.OS_reference, abs=case.OS_tolerance):
+            failures.append(f"-> OS Error: Esperado {case.OS_reference}, Obtenido {res['OS']:.4f}")
     return failures
 
-@pytest.fixture(scope="session", autouse=True)
-def pdf_report_generator():
-    global SESSION_RESULTS_LI, GLOBAL_TDG_META
-    SESSION_RESULTS_LI = []
+def create_result_dict(case, uncertainty_case, res):
+    calc_peak = res['Ut'] / 1e3
+    calc_t1 = res['T1'] * 1e6
+    calc_t2 = res['T2'] * 1e6
+    calc_os = res['OS']
 
-    yield # Aquí corren todos los tests.
+    return {
+        'file_id': case.file_id,
+        
+        'U_ref': case.U_reference, 'U_calc': calc_peak, 
+        'U_desv': 100 * (calc_peak - case.U_reference) / case.U_reference, 'U_ux': uncertainty_case.U_ux,
+        
+        'T1_ref': case.T1_reference, 'T1_calc': calc_t1, 
+        'T1_desv': 100 * (calc_t1 - case.T1_reference) / case.T1_reference, 'T1_ux': uncertainty_case.T1_ux,
+        
+        'T2_ref': case.T2_reference, 'T2_calc': calc_t2, 
+        'T2_desv': 100 * (calc_t2 - case.T2_reference) / case.T2_reference, 'T2_ux': uncertainty_case.T2_ux,
+        
+        'OS_ref': case.OS_reference, 'OS_calc': calc_os, 
+        'OS_desv': calc_os - case.OS_reference, 'OS_ux': uncertainty_case.OS_ux,
+    }
 
-    if not SESSION_RESULTS_LI:
+@pytest.fixture(scope="session")
+def report_data():
+    # Inicializa y cede el diccionario a los tests.
+    data = {"LI": [], "LIC": [], "TDG_META": {}}
+    yield data # Ejecuta los test.
+
+    # Generar reporte al final.
+    if not data["LI"] and not data["LIC"]:
         return
 
     software_meta = {
@@ -54,84 +71,61 @@ def pdf_report_generator():
         "algorithms": __algorithms_supported__, "parameters": __parameters_validated__
     }
 
-    pdf = ReportPDF(software_meta, GLOBAL_TDG_META)
+    pdf = ReportPDF(software_meta, data["TDG_META"])
     pdf.add_metadata_section()
-    pdf.add_results_table(SESSION_RESULTS_LI)
+    pdf.add_results_table(data["LI"], data["LIC"])
 
     # Función auxiliar para calcular Incertidumbres (Anexo B.3.3) de todos los parámetros.
-    def calc_uB7(devs_key, urefs_key):
-        # Extraer listas absolutas ignorando NaNs.
-        valid_devs = [np.abs(row[devs_key]) for row in SESSION_RESULTS_LI if not np.isnan(row[devs_key])]
-        valid_urefs = [row[urefs_key] for row in SESSION_RESULTS_LI if not np.isnan(row[urefs_key])]
-
+    def calc_uB7(dataset, devs_key, urefs_key):
+        if not dataset:
+            return np.nan, np.nan, np.nan
+        valid_devs = [np.abs(row[devs_key]) for row in dataset if not np.isnan(row[devs_key])]
+        valid_urefs = [row[urefs_key] for row in dataset if not np.isnan(row[urefs_key])]
         if not valid_devs or not valid_urefs:
             return np.nan, np.nan, np.nan
 
-        max_dev = np.nanmax(valid_devs)
-        max_uref = np.nanmax(valid_urefs)
+        u_B71 = (1.0 / np.sqrt(3)) * np.nanmax(valid_devs)
+        u_B72 = 0.5 * np.nanmax(valid_urefs)
+        return u_B71, u_B72, np.sqrt(u_B71**2 + u_B72**2)
 
-        u_B71 = (1.0 / np.sqrt(3)) * max_dev
-        u_B72 = 0.5 * max_uref
-        u_B7 = np.sqrt(u_B71**2 + u_B72**2)
-        return u_B71, u_B72, u_B7
+    uncertainty_li = {
+        'U': calc_uB7(data["LI"], 'U_desv', 'U_ux'),
+        'T1': calc_uB7(data["LI"], 'T1_desv', 'T1_ux'),
+        'T2': calc_uB7(data["LI"], 'T2_desv', 'T2_ux'),
+        'OS': calc_uB7(data["LI"], 'OS_desv', 'OS_ux')
+    }
 
-    unc_results = {}
-    unc_results['Ut'] = calc_uB7('dev_peak', 'u_ref_peak')
-    unc_results['T1'] = calc_uB7('dev_t1', 'u_ref_t1')
-    unc_results['T2'] = calc_uB7('dev_t2', 'u_ref_t2')
-    unc_results['Beta'] = calc_uB7('dev_beta', 'u_ref_beta')
+    uncertainty_lic = {
+        'U': calc_uB7(data["LIC"], 'U_desv', 'U_ux'),
+        'T1': calc_uB7(data["LIC"], 'T1_desv', 'T1_ux'),
+        'T2': calc_uB7(data["LIC"], 'T2_desv', 'T2_ux'),
+        'OS': calc_uB7(data["LIC"], 'OS_desv', 'OS_ux')
+    }
 
-    pdf.add_uncertainty_calculations(unc_results)
+    pdf.add_uncertainty_table(uncertainty_li, uncertainty_lic)
+    pdf_path = BASE_DIR / "Informe_Calibracion_IEC61083_2.pdf"
+    pdf.output(str(pdf_path))
+    print(f"\n[+] Informe PDF generado exitosamente en:\n{pdf_path}")
 
-    # Guardar archivo.
-    pdf.output("Informe_Calibracion_IEC61083_2.pdf")
-    print("\n[+] Informe PDF generado exitosamente.")
 
 # -----------------------------------------------------------------------------------------
 # TESTS DE IMPULSO COMPLETO (LI)
 # -----------------------------------------------------------------------------------------
 @pytest.mark.parametrize("case", TEST_CASES_LI, ids=[c.file_id for c in TEST_CASES_LI])
-def test_calibration_iec_li(case):
-    # Cargar y procesar la onda con la función para impulsos completos.
-    global GLOBAL_TDG_META
-
-    # Leer el archivo de la onda.
+def test_calibration_iec_li(case, report_data):
     file_path = BASE_DIR / f"{case.file_id}.txt"
     metadata, data = FileManager.read_TDG_file(file_path)
 
-    if not GLOBAL_TDG_META:
-        GLOBAL_TDG_META = metadata
+    if not report_data["TDG_META"]:
+        report_data["TDG_META"].update(metadata)
 
     analyzer = LightningImpulseAnalyzer(data, metadata['sampling_period'], 1.0)
     analyzer.ref_lightning_impulse()
-    res = analyzer.results
 
-    # Buscar el caso de incertidumbre correspondiente en UNCERTAINTY_CASES_LI.
-    unc_case = next(u for u in UNCERTAINTY_CASES_LI if u.file_id == case.file_id)
+    uncertainty_case = next(u for u in UNCERTAINTY_CASES_LI if u.file_id == case.file_id)
+    report_data["LI"].append(create_result_dict(case, uncertainty_case, analyzer.results))
 
-    # Calcular Desviaciones.
-    calc_peak = res['Ut'] / 1e3
-    dev_peak = 100 * (calc_peak - case.expected_peak) / case.expected_peak
-
-    calc_t1 = res['T1'] * 1e6
-    dev_t1 = 100 * (calc_t1 - case.expected_T1) / case.expected_T1
-
-    calc_t2 = res['T2'] * 1e6
-    dev_t2 = 100 * (calc_t2 - case.expected_T2) / case.expected_T2
-
-    calc_beta = res['Beta_prime']
-    dev_beta = calc_beta - case.expected_beta # Error absoluto para Beta'.
-
-    # Guardar en memoria para el reporte en PDF.
-    SESSION_RESULTS_LI.append({
-        'file_id': case.file_id,
-        'ref_peak': case.expected_peak, 'calc_peak': calc_peak, 'dev_peak': dev_peak, 'u_ref_peak': unc_case.U_ux_pct,
-        'ref_t1': case.expected_T1, 'calc_t1': calc_t1, 'dev_t1': dev_t1, 'u_ref_t1': unc_case.T1_ux_pct,
-        'ref_t2': case.expected_T2, 'calc_t2': calc_t2, 'dev_t2': dev_t2, 'u_ref_t2': unc_case.T2_ux_pct,
-        'ref_beta': case.expected_beta, 'calc_beta': calc_beta, 'dev_beta': dev_beta, 'u_ref_beta': unc_case.beta_ux_abs,
-    })
-
-    failures = check_failures(res, case)
+    failures = check_failures(analyzer.results, case)
     if failures:
         pytest.fail("\n".join(failures), pytrace=False)
 
@@ -139,7 +133,7 @@ def test_calibration_iec_li(case):
 # TESTS DE IMPULSO CORTADO (LIC)
 # -----------------------------------------------------------------------------------------
 @pytest.mark.parametrize("case", TEST_CASES_LIC, ids=[c.file_id for c in TEST_CASES_LIC])
-def test_calibration_iec_lic(case):
+def test_calibration_iec_lic(case, report_data):
     # Verificar si es un caso de corte en la cola (requiere análisis dual).
     if case.file_id in ["LIC-M4", "LIC-M5"]:
         # Cargar y procesar la onda de referencia (f).
@@ -154,10 +148,12 @@ def test_calibration_iec_lic(case):
         analyzer = LightningImpulseAnalyzer(data, metadata['sampling_period'], 1.0)
         analyzer.lightning_impulse(ref_analyzer)
 
+        uncertainty_case = next(u for u in UNCERTAINTY_CASES_LIC if u.file_id == case.file_id)
+        report_data["LIC"].append(create_result_dict(case, uncertainty_case, analyzer.results))
+
         failures = check_failures(analyzer.results, case)
         if failures:
             pytest.fail("\n".join(failures), pytrace=False)
-
     else:
         # Los casos LIC-A1, LIC-M1, LIC-M2, LIC-M3 no se analizan por el momento.
         pytest.skip("Pendiente de implementación.")

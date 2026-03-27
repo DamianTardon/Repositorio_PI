@@ -8,43 +8,43 @@ class ImpulseCase(NamedTuple):
     description: str         # Descripción de la onda.
 
     # Valor Pico (U)
-    expected_peak: float     # Valor esperado.
-    tolerance_peak: float    # Tolerancia.
+    U_reference: float       # Valor esperado.
+    U_tolerance: float       # Tolerancia.
 
     # Tiempo de Frente (T1)
-    expected_T1: float       # Valor esperado.
-    tolerance_T1: float      # Tolerancia.
+    T1_reference: float      # Valor esperado.
+    T1_tolerance: float      # Tolerancia.
 
     # Tiempo de Cola (T2)
-    expected_T2: float       # Valor esperado.
-    tolerance_T2: float      # Tolerancia.
+    T2_reference: float      # Valor esperado.
+    T2_tolerance: float      # Tolerancia.
 
     # Sobrepasamiento (Beta')
-    expected_beta: float     # Valor esperado.
-    tolerance_beta: float    # Tolerancia.
+    OS_reference: float      # Valor esperado.
+    OS_tolerance: float      # Tolerancia.
 
 class UncertaintyCase(NamedTuple):
-    file_id: str       # Nombre de la onda.
+    file_id: str             # Nombre de la onda.
 
     # Valor Pico (U).
-    U_x_ref: float     # Valor medio (kV).
-    U_ux_pct: float    # Incertidumbre Expandida Ux (%).
-    U_n: int           # Número de observaciones (n).
+    U_reference: float       # Valor medio (kV).
+    U_ux: float              # Incertidumbre Expandida Ux (%).
+    U_n: int                 # Número de observaciones (n).
 
     # Tiempo de Frente (T1).
-    T1_x_ref: float    # Valor medio (µs).
-    T1_ux_pct: float   # Incertidumbre Expandida Ux (%).
-    T1_n: int          # Número de observaciones (n).
+    T1_reference: float      # Valor medio (µs).
+    T1_ux: float             # Incertidumbre Expandida Ux (%).
+    T1_n: int                # Número de observaciones (n).
 
     # Tiempo de Cola (T2).
-    T2_x_ref: float    # Valor medio (µs).
-    T2_ux_pct: float   # Incertidumbre Expandida Ux (%).
-    T2_n: int          # Número de observaciones (n).
+    T2_reference: float      # Valor medio (µs).
+    T2_ux: float             # Incertidumbre Expandida Ux (%).
+    T2_n: int                # Número de observaciones (n).
 
     # Sobrepasamiento (Beta').
-    beta_x_ref: float  # Valor medio (%).
-    beta_ux_abs: float # Incertidumbre Expandida Ux (Absoluta %).
-    beta_n: int        # Número de observaciones (n).
+    OS_reference: float      # Valor medio (%).
+    OS_ux: float             # Incertidumbre Expandida Ux (Absoluta %).
+    OS_n: int                # Número de observaciones (n).
 
 # TABLA A.1 (Full Lightning Impulse).
 RAW_TABLE_A1_LI = [

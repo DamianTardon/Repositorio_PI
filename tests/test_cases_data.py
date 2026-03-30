@@ -7,19 +7,19 @@ class ImpulseCase(NamedTuple):
     file_id: str             # Nombre de la onda.
     description: str         # Descripción de la onda.
 
-    # Valor Pico (U)
+    # Valor Pico (U).
     U_reference: float       # Valor esperado.
     U_tolerance: float       # Tolerancia.
 
-    # Tiempo de Frente (T1)
+    # Tiempo de Frente (T1).
     T1_reference: float      # Valor esperado.
     T1_tolerance: float      # Tolerancia.
 
-    # Tiempo de Cola (T2)
+    # Tiempo de Cola (T2).
     T2_reference: float      # Valor esperado.
     T2_tolerance: float      # Tolerancia.
 
-    # Sobrepasamiento (Beta')
+    # Sobrepasamiento (OS).
     OS_reference: float      # Valor esperado.
     OS_tolerance: float      # Tolerancia.
 
@@ -41,7 +41,7 @@ class UncertaintyCase(NamedTuple):
     T2_ux: float             # Incertidumbre Expandida Ux (%).
     T2_n: int                # Número de observaciones (n).
 
-    # Sobrepasamiento (Beta').
+    # Sobrepasamiento (OS).
     OS_reference: float      # Valor medio (%).
     OS_ux: float             # Incertidumbre Expandida Ux (Absoluta %).
     OS_n: int                # Número de observaciones (n).
@@ -116,7 +116,7 @@ RAW_TABLE_B1_LI = [
     ("LI-M10", 100.258, 0.004, 8, 1.666, 0.09, 8, 60.853, 0.003, 8, -0.007, 0.011, 6),
     ("LI-M11", 299.324, 0.004, 8, 1.6611, 0.07, 8, 60.946, 0.005, 8, -0.457, 0.002, 7),
     ("LI-M12", -4.3193, 0.008, 8, 1.292, 0.2, 8, 52.266, 0.011, 8, -1.76, 0.05, 7),
-    ("LI-M13", 39.460, 0.0048, 8, 1.537, 0.2, 8, 46.937, 0.013, 8, 1.763, 0.014, 7),
+    ("LI-M13", 39.460, 0.004, 8, 1.537, 0.2, 8, 46.937, 0.013, 8, 1.763, 0.014, 7),
     ("LI-M14", 48.549, 0.012, 8, 0.933, 0.2, 7, 37.479, 0.04, 8, 4.27, 0.04, 7),
     ("LI-M15", 497.97, 0.005, 8, 1.0166, 0.11, 8, 59.187, 0.007, 8, -0.08, 0.02, 7),
     ("LI-M16", 369.21, 0.005, 8, 0.9198, 0.10, 8, 47.531, 0.010, 8, 0.833, 0.006, 7),

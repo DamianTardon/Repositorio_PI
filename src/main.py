@@ -1,28 +1,25 @@
-import os
 import sys
-from PySide6.QtWidgets import QApplication
-from PySide6.QtUiTools import QUiLoader
-from PySide6.QtCore import QFile
-import pyqtgraph as pg
+from PySide6.QtWidgets import QApplication, QMainWindow
+from ui_graphic_user_interface import Ui_MainWindow
 
-# Liberías de este proyecto
+# Liberías de este proyecto.
 from file_manager import FileManager
 from impulse_analyzer import LightningImpulseAnalyzer
 from gw_instek_gds1000a_u import GWInstekGDS1000AU
 from controller import MainController
 
+class MainWindow(QMainWindow, Ui_MainWindow):
+    # Unir la ventana de PySide6 con el diseño generado.
+    def __init__(self):
+        super().__init__()
+        self.setupUi(self)
+
+
 if __name__ == "__main__":
     app = QApplication(sys.argv)
 
-    # Cargar la interfaz
-    current_directory = os.path.dirname(os.path.abspath(__file__))
-    ruta_ui = os.path.join(current_directory, "graphic_user_interface.ui")
-    ui_file = QFile(ruta_ui)
-    ui_file.open(QFile.ReadOnly)
-    loader = QUiLoader()
-    loader.registerCustomWidget(pg.PlotWidget)
-    window = loader.load(ui_file)
-    ui_file.close()
+    # Instanciar la ventana compilada.
+    window = MainWindow()
 
     # Instanciar los componentes del backend.
     oscilloscope = GWInstekGDS1000AU()

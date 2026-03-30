@@ -4,7 +4,7 @@ import re
 import numpy as np
 from PySide6.QtCore import Qt, QObject, QThread, Signal, Slot, QRegularExpression, QTimer
 from PySide6.QtWidgets import QMessageBox, QFileDialog, QMenu
-from PySide6.QtGui import QRegularExpressionValidator, QIntValidator, QFont, QAction
+from PySide6.QtGui import QRegularExpressionValidator, QIntValidator, QAction
 import pyqtgraph as pg
 from datetime import datetime
 

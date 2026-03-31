@@ -27,7 +27,7 @@ class LightningImpulseAnalyzer:
         # Datos de entrada:
         self.raw_voltage = np.array(voltage_data)
 
-        # Generar array de tiempo automáticamente: t = index * intervalo
+        # Generar array de tiempo: t = index * intervalo.
         self.time_axis = np.arange(len(self.raw_voltage)) * self.sampling_period
 
         # Tipo de onda:
@@ -211,7 +211,7 @@ class LightningImpulseAnalyzer:
         if self.fit_voltage is None or self.fit_time is None:
             raise ValueError("Error: Falta segmentar los datos de la onda para el ajuste.")
 
-        # 1. Estimación de parámetros iniciales.
+        # Estimación de parámetros iniciales.
         p0_U = self.peak_value
         p0_tau1 = 70e-6
         p0_tau2 = 0.4e-6
@@ -223,7 +223,7 @@ class LightningImpulseAnalyzer:
         # sigma varía entre 0 y 1. Mientras menor sea sigma, el ajuste en el frente es más preciso.
         sigma[:idx_peak_in_slice + 5] = self.sigma_fit
 
-        # 2. Ejecutar el ajuste de curva (Levenberg-Marquardt).
+        # Ejecutar el ajuste de curva (Levenberg-Marquardt).
         try:
             popt, pcov = curve_fit(
                 self._double_exponential_func,
@@ -244,7 +244,7 @@ class LightningImpulseAnalyzer:
         except RuntimeError as e:
             raise ValueError("Falló el ajuste matemático de la curva base. La forma de onda puede estar muy distorsionada o cortada prematuramente.")
 
-        # 3. Generar la función ajustada con los parámetros encontrados.
+        # Generar la función ajustada con los parámetros encontrados.
         self.fitted_curve = self._double_exponential_func(self.fit_time,
                                                           self.fitted_params['U'],
                                                           self.fitted_params['tau1'],
@@ -305,10 +305,10 @@ class LightningImpulseAnalyzer:
         if self.residual_curve is None:
             raise ValueError("Error: Falta calcular la curva residual.")
 
-        # 1. Calcular los coeficientes del filtro.
+        # Calcular los coeficientes del filtro.
         b, a = self._create_digital_filter()
 
-        # 2. Aplicar el filtro de fase cero, para obtener la curva residual filtrada Rf(t).
+        # Aplicar el filtro de fase cero, para obtener la curva residual filtrada Rf(t).
         self.filtered_residual = signal.filtfilt(b, a, self.residual_curve)
 
     def _construct_test_voltage_curve(self):
@@ -386,14 +386,14 @@ class LightningImpulseAnalyzer:
         self.idx_peak_Ut = np.argmax(self.test_voltage_curve_abs)
         self.results["OS"] = 100 * (self.peak_value - self.Ub) / self.peak_value
 
-        # Intentar calcular O1 y T1.
+        # Calcular O1 y T1.
         try:
             O1, T1 = self._calc_front_parameters(Ut)
             self.results["T1"] = T1
         except ValueError:
             raise ValueError("No se pudo calcular el Tiempo de Frente (T1). El frente de onda puede tener demasiado ruido o no alcanza los niveles del 30% y 90%.")
 
-        # Intentar calcular T2.
+        # Calcular T2.
         try:
             if self.impulse_type == "full":
                 T2 = self._calc_tail_parameter(Ut, O1)
@@ -564,7 +564,7 @@ class LightningImpulseAnalyzer:
 # Métodos de análisis completo para cada tipo de onda.
     def ref_lightning_impulse(self):
         self.impulse_type = "full"
-        # Ejecutar pipeline completo
+        # Ejecutar pipeline completo.
         self._remove_offset()
         self._polarity_normalization()
         self._normalize_waveform()
@@ -585,10 +585,10 @@ class LightningImpulseAnalyzer:
         self._remove_offset()
         self._polarity_normalization()
         self._normalize_waveform()
+        #-----------------------------------------------------
         self._find_time_lag(ref_analyzer)
         self._adjust_time_lag()
         self._find_deviation_point(ref_analyzer)
-        #-----------------------------------------------------
         if self.impulse_type == "full":
             self._cutting_signal()
             self._fit_base_curve()

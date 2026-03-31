@@ -21,8 +21,8 @@ class MockChannel2Analyzer:
         self.time_axis = np.arange(len(self.raw_voltage)) * dt
         self.aligned_time_axis = None
         self.test_voltage_curve = self.raw_voltage
-        
-        # Normalización simple para que la vista 'normalizada' no falle
+
+        # Normalización simple para que la vista 'normalizada' no falle.
         max_val = np.max(np.abs(self.test_voltage_curve))
         if max_val != 0:
             self.test_voltage_curve_norm = self.test_voltage_curve / max_val
@@ -68,7 +68,7 @@ class MainController(QObject):
         # Variables de estado del ensayo.
         self.ref_analyzer = None
 
-        # Ahora almacenan datos múltiples basados en el número de canal activo
+        # Ahora almacenan datos múltiples basados en el número de canal activo.
         self.pending_analyzers = {}  # { 1: info_ch1, 2: info_ch2 }
         self.last_acquired_data = {} # { 1: (buffer, wave, real_wave, dt), 2: ... }
 
@@ -164,8 +164,8 @@ class MainController(QObject):
         self.ui.ch2_enabler.setChecked(True)
         self._toggle_attenuations()
 
-        # Configuración inicial del gráfico (pyqtgraph)
-        self.ui.graph_view.setBackground('w') # Fondo blanco
+        # Configuración inicial del gráfico (pyqtgraph).
+        self.ui.graph_view.setBackground('w') # Fondo blanco.
         self.ui.graph_view.showGrid(x=True, y=True, alpha=0.3)
 
         # Variables para acumular ondas en memoria RAM.
@@ -245,7 +245,7 @@ class MainController(QObject):
 
         # Conectar la señal de redimensionamiento de la ventana a la función de actualización.
         self.ui.graph_view.getViewBox().sigResized.connect(update_views)
-        
+
         # Forzar una actualización inicial de las vistas.
         update_views()
 
@@ -311,7 +311,7 @@ class MainController(QObject):
             if val is not None:
                 line_edit.setText(f"{val * scale:.2f}")
             else:
-                line_edit.setText("") # Deja en blanco si no se pudo calcular
+                line_edit.setText("") # Deja en blanco si no se pudo calcular.
 
         set_val(self.ui.peak_voltage_value, "Ut", 1/1000.0)
         set_val(self.ui.t1_value, "T1", 1e6)
@@ -352,7 +352,7 @@ class MainController(QObject):
                     y_data_ch2 = wave["ch2_norm"] if is_normalized else wave["ch2_real"]
                     pen_ch2 = pg.mkPen(color=wave["color"], width=2, style=Qt.DashLine)
 
-                    # Crear curva, añadir al ViewBox secundario y registrar en la leyenda
+                    # Crear curva, añadir al ViewBox secundario y registrar en la leyenda.
                     curve_ch2 = pg.PlotCurveItem(wave["t"], y_data_ch2, pen=pen_ch2)
                     self.view_box_ch2.addItem(curve_ch2)
                     self.legend.addItem(curve_ch2, f"{name} (CH2)")
@@ -379,15 +379,16 @@ class MainController(QObject):
                 y_data = analyzer.raw_voltage
                 pen_color = (200, 0, 0) # Rojo para error.
                 legend_name = f"Error (CH{ch})"
+
             # Dibujar la curva en el lienzo.
             if t_axis is not None and y_data is not None:
                 pen = pg.mkPen(color=pen_color, width=3) # Más gruesa para destacar.
                 
                 if ch == 1:
-                    # CH1 al eje izquierdo normal
+                    # CH1 al eje izquierdo normal.
                     self.ui.graph_view.plot(t_axis, y_data, name=legend_name, pen=pen)
                 else:
-                    # CH2 al eje derecho
+                    # CH2 al eje derecho.
                     curve_ch2_pending = pg.PlotCurveItem(t_axis, y_data, pen=pen)
                     self.view_box_ch2.addItem(curve_ch2_pending)
                     self.legend.addItem(curve_ch2_pending, legend_name)
@@ -417,7 +418,7 @@ class MainController(QObject):
             return # El usuario cerró la ventana sin elegir nada.
 
         try:
-            # Leer el archivo usando la función de file_manager.py
+            # Leer el archivo usando la función de file_manager.py.
             metadata, data_list = self.fm.read_TDG_file(file_path)
             # Extraer dt y convertir la lista de tensión a un array de NumPy.
             dt = metadata['sampling_period']
@@ -571,10 +572,10 @@ class MainController(QObject):
                     self.visibility_menu.removeAction(action)
 
             for h5_name, data in loaded_waves.items():
-                # Secciona el nombre en partes. 
-                # Ej: "Onda_05_20260324" -> parts = ["Onda", "05", "20260324"]
+                # Separa el nombre en partes. 
+                # Ej: "Onda_05_20260324" -> parts = ["Onda", "05", "20260324"].
                 parts = h5_name.split("_")
-                
+
                 # Tomar el nombre "Onda" o "Referencia" y los 2 dígitos que la enumeran.
                 # Onda_05_20260324 -> Onda_05.
                 # Referencia_06_20260324 -> Referencia_06.
@@ -582,7 +583,7 @@ class MainController(QObject):
                     display_name = f"{parts[0]}_{parts[1]}"
                 else:
                     display_name = h5_name
-                
+
                 color = pg.intColor(self.color_index, hues=15, maxValue=200)
                 self.color_index += 1
 
@@ -596,14 +597,13 @@ class MainController(QObject):
                     "is_visible": True
                 }
 
-                # Agregar al menú.
+                # Agregar ondas al menú.
                 action = QAction(display_name, self)
                 action.setCheckable(True)
                 action.setChecked(True)
                 action.toggled.connect(lambda checked, n=display_name: self._toggle_wave_visibility(n, checked))
                 self.visibility_menu.addAction(action)
 
-            
             total_waves = self.wave_count + self.ref_count
             self.project_created = True
             self.ui.graph_name.setText(f"Reanudado. Ondas previas: {total_waves}")
@@ -698,7 +698,7 @@ class MainController(QObject):
 
     def _process_and_plot_acquired_data(self):
         self.pending_analyzers = {}
-        
+
         ch1_active = 1 in self.last_acquired_data
         ch2_active = 2 in self.last_acquired_data
 
@@ -710,7 +710,7 @@ class MainController(QObject):
                     temp_analyzer.ref_lightning_impulse()
                 else:
                     temp_analyzer.lightning_impulse(self.ref_analyzer)
-                
+
                 # Procesó la onda exitosamente.
                 # Guardar el analizador exitoso y actualiza la GUI.
                 self._update_results_gui(temp_analyzer)
@@ -738,7 +738,7 @@ class MainController(QObject):
                     "Ocurrió un error inesperado al calcular los parámetros de la onda.")
 
         else:
-            # Si CH1 no corrió, limpiamos el panel de resultados
+            # Si CH1 no corrió, limpiamos el panel de resultados.
             self.ui.peak_voltage_value.setText("")
             self.ui.t1_value.setText("")
             self.ui.t2_value.setText("")
@@ -746,7 +746,7 @@ class MainController(QObject):
 
         if ch2_active:
             _, _, real_waveform, dt = self.last_acquired_data[2]
-            # CH2 no hace matemática, solo es un contenedor adaptado para graficar
+            # CH2 no hace matemática, solo es un contenedor adaptado para graficar.
             temp_analyzer2 = MockChannel2Analyzer(real_waveform, dt)
             self.pending_analyzers[2] = {"analyzer": temp_analyzer2, "success": True}
 
@@ -1064,7 +1064,7 @@ class MainController(QObject):
         finally:
             value_selector.blockSignals(False)
 
-        # Enviar la nueva configuración final al osciloscopio
+        # Enviar la nueva configuración final al osciloscopio.
         self._update_v_scale(channel, value_selector.currentText(), unit)
 
     def _change_time_unit(self, unit):
@@ -1141,7 +1141,7 @@ class MainController(QObject):
             "Excel (*.xlsx);;CSV (*.csv)")
 
         if not file_path:
-            return # El usuario canceló el diálogo
+            return # El usuario canceló el diálogo.
 
         # Escribir el archivo.
         try:
@@ -1154,10 +1154,10 @@ class MainController(QObject):
             # Abrir el explorador de archivos mostrando el documento seleccionado.
             import platform
             import subprocess
-            
+
             file_path_os = os.path.normpath(file_path)
             current_os = platform.system()
-            
+
             if current_os == "Windows": # Windows.
                 subprocess.run(['explorer', '/select,', file_path_os])
             elif current_os == "Darwin": # macOS.

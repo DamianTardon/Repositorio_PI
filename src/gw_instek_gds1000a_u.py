@@ -5,7 +5,7 @@ import pyvisa
 import numpy as np
 
 class GWInstekGDS1000AU:
-    # Constante de cuantización vertical del ADC específica del modelo.
+    # Constante de cuantización vertical del ADC, específica del modelo.
     ADC_STEPS_PER_DIV = 25.0
 
     def __init__(self):
@@ -531,13 +531,13 @@ class GWInstekGDS1000AU:
     @staticmethod
     def process_multipliers(value, unit):
         multipliers = {
-            "V": 1.0,        # Volt
-            "mV": 1e-3,      # Milivolt
-            "uV": 1e-6,      # Microvolt
-            "s": 1.0,        # Segundo
-            "ms": 1e-3,      # Milisegundo
-            "µs": 1e-6,      # Microsegundo
-            "ns": 1e-9       # Nanosegundo
+            "V": 1.0,        # Volt.
+            "mV": 1e-3,      # Milivolt.
+            "uV": 1e-6,      # Microvolt.
+            "s": 1.0,        # Segundo.
+            "ms": 1e-3,      # Milisegundo.
+            "µs": 1e-6,      # Microsegundo.
+            "ns": 1e-9       # Nanosegundo.
         }
         
         try:
@@ -549,6 +549,6 @@ class GWInstekGDS1000AU:
             return scale
 
         except ValueError:
-            # Por si el usuario dejó el combo_valor en blanco o no es un número
+            # Por si el usuario dejó el combo_valor en blanco o no es un número.
             print("Esperando un número válido en la lista...")
             return None

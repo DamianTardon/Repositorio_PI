@@ -212,7 +212,6 @@ class Ui_MainWindow(object):
 
         self.gridLayout_14.addWidget(self.environmental_conditions_label, 1, 0, 1, 1)
 
-
         self.gridLayout_12.addWidget(self.environmental_conditions_block, 1, 0, 1, 1)
 
         self.oscilloscope_configurations_block = QFrame(self.centralwidget)
@@ -397,7 +396,6 @@ class Ui_MainWindow(object):
 
         self.gridLayout_3.addItem(self.horizontalSpacer_4, 2, 4, 1, 1)
 
-
         self.gridLayout_6.addLayout(self.gridLayout_3, 1, 0, 1, 1)
 
         self.line = QFrame(self.oscilloscope_configurations_block)
@@ -480,7 +478,6 @@ class Ui_MainWindow(object):
 
         self.gridLayout_4.addItem(self.horizontalSpacer_5, 2, 2, 1, 1)
 
-
         self.gridLayout_6.addLayout(self.gridLayout_4, 1, 3, 1, 1)
 
         self.line_2 = QFrame(self.oscilloscope_configurations_block)
@@ -554,9 +551,7 @@ class Ui_MainWindow(object):
 
         self.gridLayout_5.addWidget(self.trigger_edge, 1, 0, 1, 1)
 
-
         self.gridLayout_6.addLayout(self.gridLayout_5, 1, 5, 1, 1)
-
 
         self.gridLayout_12.addWidget(self.oscilloscope_configurations_block, 9, 0, 1, 2)
 
@@ -635,7 +630,6 @@ class Ui_MainWindow(object):
         self.btn_visibility.setStyleSheet(u"background-color: rgba(227, 222, 204, 254);")
 
         self.gridLayout_11.addWidget(self.btn_visibility, 0, 2, 1, 1)
-
 
         self.gridLayout_12.addWidget(self.impulse_graph_block, 0, 1, 9, 4)
 
@@ -777,9 +771,7 @@ class Ui_MainWindow(object):
 
         self.test_results_grid.addItem(self.verticalSpacer_5, 4, 0, 1, 3)
 
-
         self.gridLayout_18.addLayout(self.test_results_grid, 1, 0, 1, 1)
-
 
         self.gridLayout_12.addWidget(self.test_results_block, 9, 4, 1, 1)
 
@@ -836,7 +828,6 @@ class Ui_MainWindow(object):
         self.btn_export_results.setStyleSheet(u"background-color: rgba(227, 222, 204, 254);")
 
         self.gridLayout_2.addWidget(self.btn_export_results, 4, 0, 1, 1)
-
 
         self.gridLayout_12.addWidget(self.test_block, 9, 3, 1, 1)
 
@@ -941,7 +932,6 @@ class Ui_MainWindow(object):
 
         self.test_data_grid.addWidget(self.item_dash, 1, 2, 1, 1)
 
-
         self.gridLayout.addLayout(self.test_data_grid, 1, 0, 1, 2)
 
         self.horizontalSpacer_2 = QSpacerItem(40, 20, QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Minimum)
@@ -956,7 +946,6 @@ class Ui_MainWindow(object):
         self.btn_create_folder.setStyleSheet(u"background-color: rgba(227, 222, 204, 254);")
 
         self.gridLayout.addWidget(self.btn_create_folder, 0, 1, 1, 1)
-
 
         self.gridLayout_12.addWidget(self.test_data_block, 0, 0, 1, 1)
 
@@ -1081,13 +1070,11 @@ class Ui_MainWindow(object):
 
         self.system_attenuation_grid.addWidget(self.ch2_attenuation_label, 0, 4, 1, 1)
 
-
         self.gridLayout_20.addLayout(self.system_attenuation_grid, 1, 0, 1, 1)
 
         self.horizontalSpacer_8 = QSpacerItem(40, 20, QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Minimum)
 
         self.gridLayout_20.addItem(self.horizontalSpacer_8, 1, 1, 1, 1)
-
 
         self.gridLayout_12.addWidget(self.system_attenuations_block, 2, 0, 1, 1)
 
@@ -1213,4 +1200,3 @@ class Ui_MainWindow(object):
         self.attenuator_label.setText(QCoreApplication.translate("MainWindow", u"Atenuador =", None))
         self.ch2_attenuation_label.setText(QCoreApplication.translate("MainWindow", u"CH2:", None))
     # retranslateUi
-

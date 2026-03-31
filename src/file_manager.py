@@ -16,10 +16,7 @@ class FileManager:
         self.raw = self.base / "01 Respaldo"
         self.analysis = self.base / "02 Analisis de datos"
         self.results = self.base / "03 Resultados"
-        
-        # Crear Estructura Automáticamente al iniciar
-        #self._create_structure()
-    
+
     def create_new_structure(self, project_name, base_dir=None):
         # Si se recibe una ruta base, se usa. Si no, usa el directorio de trabajo (cwd).
         if base_dir:
@@ -36,10 +33,9 @@ class FileManager:
         # Crea la carpeta si no existe. Y si ya existe no hace nada.
         for carpeta in [self.raw, self.analysis, self.results]:
             carpeta.mkdir(parents=True, exist_ok=True)
-            #print(f"Verificado: {carpeta}")
 
     def get_new_filename(self, filename, extension=".bin"):
-        # Asegura que el nombre termine con la extensión solicitada
+        # Asegura que el nombre termine con la extensión solicitada.
         if not filename.endswith(extension):
             filename = f"{filename}{extension}"
 
@@ -51,17 +47,16 @@ class FileManager:
             return self.results / filename
         else:
             return self.base / filename
-        
+
     @staticmethod
     def create_bin_int16(data, file_path):
     # Crear BIN (int16): para guardar datos originales como copia de seguridad.
         with open(file_path, "wb") as f:
             f.write(data)
-            #print(f"Se creó '{file_path}'")
 
     @staticmethod
     def read_bin_without_header(file_path):
-        # dtype='>i2': Big Endian (>), 2 bytes int (i2)
+        # dtype='>i2': Big Endian (>), 2 bytes int (i2).
         raw_data = np.fromfile(file_path, dtype='>i2')
         waveform = raw_data / FileManager.ADC_STEPS_PER_DIV
         return waveform
@@ -71,28 +66,28 @@ class FileManager:
         with open(file_path, "rb") as f:
             # Leer primeros 2 bytes (# + Digito).
             header_start = f.read(2)
-            
+
             # Parsear el dígito de tamaño.
             data_size_digit = int(chr(header_start[1]))
-            
+
             # Leer el tamaño del bloque (los siguientes N bytes).
             size_bytes = f.read(data_size_digit)
             data_size = int(size_bytes.decode('ascii'))
-            
+
             print("Cabecera: " + header_start.decode('ascii') + size_bytes.decode('ascii'))
             print(f"Datos a leer: {data_size} bytes")
 
             time_interval = f.read(8)
-            # >  : Big Endian
-            # f  : Float (4 bytes) -> Periodo de muestreo
-            # 4x : Padding (4 bytes) -> Ignorar bloque de datos sin uso
+            # >  : Big Endian.
+            # f  : Float (4 bytes) -> Periodo de muestreo.
+            # 4x : Padding (4 bytes) -> Ignorar bloque de datos sin uso.
             dt = struct.unpack('>f4x', time_interval)[0]
-            
+
             print(f"Periodo de muestreo (dt): {dt:.2e} [s] = {dt*1e9:.0f} [ns]")
-            
+
             # Leemos el resto del archivo (que debe coincidir con data_size).
             raw_bytes = f.read()
-            
+
             # Validación de seguridad.
             # Si el tamaño de los datos leídos no coincide con lo esperado, se muestra una advertencia.
             if len(raw_bytes) != data_size-8:
@@ -107,32 +102,32 @@ class FileManager:
     def read_csv(file_path):
         # 'usecols' leer SOLAMENTE esa columna.
         df = pd.read_csv(file_path, usecols=["Tensión [V]"])
-        
-        # df[titulo_columna] accede a los datos
-        # .values lo convierte a un array de NumPy
+
+        # df[titulo_columna] accede a los datos.
+        # .values lo convierte a un array de NumPy.
         return df["Tensión [V]"].values
-    
+
     @staticmethod
     def read_h5(file_path):
         with h5py.File(file_path, "r") as f:
             return f["Tensión [V]"][:]
-        
+
     @staticmethod
     def read_TDG_file(file_path):
         metadata = {}
         data = []
-        
+
         with open(file_path, 'r') as f:
-            
+
             metadata['software_version'] = f.readline().strip()
             metadata['version_file'] = f.readline().strip()
             metadata['wave_name'] = f.readline().strip()
 
             line_4 = f.readline().strip()
             resolution_samples_time = line_4.split(',')
-            
+
             metadata['resolution'] = resolution_samples_time[0].strip()
-            
+
             samples_time = resolution_samples_time[1].strip().split(' samples at ')
             metadata['samples'] = int(samples_time[0])
             metadata['interval'] = samples_time[1].strip()
@@ -199,7 +194,7 @@ class FileManager:
                 self._save_dataset(grp_ch2, "raw_current", ch2_data.get("raw"))
                 self._save_dataset(grp_ch2, "test_current", ch2_data.get("test"))
                 self._save_dataset(grp_ch2, "norm_current", ch2_data.get("norm"))
-    
+
     def read_hdf5_waveforms(self, file_path):
         # Leer el archivo HDF5 para recuperar los datos guardados.
         global_attrs = {}
@@ -209,7 +204,7 @@ class FileManager:
             return global_attrs, waves_data
 
         with h5py.File(file_path, 'r') as f:
-            # Extraer atributos globales (Cliente, Divisores, etc.)
+            # Extraer atributos globales (Cliente, Divisores, etc.).
             for key, val in f.attrs.items():
                 global_attrs[key] = val.decode('utf-8') if isinstance(val, bytes) else val
 

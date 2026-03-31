@@ -14,27 +14,6 @@ def print_information_TDG(metadata, data):
     print("Datos de la onda:")
     print(f"\nTotal de puntos extraídos: {len(data)}")
 
-def plot_1_waveform(time_axis1, waveform1, label1, title):
-    plt.figure(figsize=(12, 3))
-    plt.plot(time_axis1, waveform1, label=label1)
-    plt.title(title)
-    plt.legend()
-    plt.xlabel("Tiempo [µs]")
-    plt.ylabel("Tensión [kV]")
-    plt.grid(True)
-    plt.show()
-
-def plot_2_waveform(time_axis1, waveform1, label1, time_axis2, waveform2, label2, title):
-    plt.figure(figsize=(12, 3))
-    plt.plot(time_axis1, waveform1, label=label1)
-    plt.plot(time_axis2, waveform2, color='red',label=label2)
-    plt.title(title)
-    plt.legend()
-    plt.xlabel("Tiempo [µs]")
-    plt.ylabel("Tensión [kV]")
-    plt.grid(True)
-    plt.show()
-
 class ReportPDF(FPDF):
     def __init__(self, software_meta, tdg_meta):
         # Apaisado para acomodar la tabla.
@@ -113,7 +92,7 @@ class ReportPDF(FPDF):
 
         for row in results_data:
             self.cell(col_widths[0], 6, row['file_id'], border=1, align="C")
-            
+
             for p_idx, (p_key, decimals) in enumerate(params_info):
                 ref = row[f'{p_key}_ref']
                 calc = row[f'{p_key}_calc']
@@ -148,7 +127,7 @@ class ReportPDF(FPDF):
         self._draw_uncertainty_table(uncertainty_lic)
 
     def _draw_uncertainty_table(self, uncertainty_results):
-        # Valida que al menos haya algún dato real evaluado en el diccionario antes de dibujarlo
+        # Valida que al menos haya algún dato real evaluado en el diccionario antes de dibujarlo.
         has_data = any(not np.isnan(vals[2]) for vals in uncertainty_results.values() if vals)
 
         if not has_data:

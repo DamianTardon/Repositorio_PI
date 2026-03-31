@@ -1,2 +1,14 @@
 **/__pycache__/
 *.pyc
+
+# PyInstaller
+build/
+dist/
+*.spec
+
+# Nuitka
+*.build/
+*.dist/
+*.onefile-build/
+
+*.exe

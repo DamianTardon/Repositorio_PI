@@ -8,7 +8,8 @@ from PySide6.QtGui import QRegularExpressionValidator, QIntValidator, QAction
 import pyqtgraph as pg
 from datetime import datetime
 
-DEBUG_MODE = os.environ.get("DEBUG_MODE", "True") == "True"
+#DEBUG_MODE = os.environ.get("DEBUG_MODE", "False") == "True"
+DEBUG_MODE = False
 
 class MockChannel2Analyzer:
     """

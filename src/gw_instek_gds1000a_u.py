@@ -39,6 +39,8 @@ class GWInstekGDS1000AU:
             if state[0] == '1':
                 time.sleep(0.1)
                 self.dso.write(f":acquire{channel}:memory?")
+
+                # Leer el encabezado inicial.
                 inBuffer = self.dso.read_bytes(10)
                 length = len(inBuffer)
                 headerlen = 2 + int(chr(inBuffer[1]))
@@ -73,6 +75,55 @@ class GWInstekGDS1000AU:
             self.close()
             return None, None, None
 
+    """
+    def get_block_data(self, channel):
+        try:
+            v_div = self.get_channel_scale(channel)
+            self.dso.write(f':acquire{channel}:state?')
+            state = self.dso.read()
+
+            if state[0] == '1':
+                time.sleep(0.1)
+                self.dso.write(f":acquire{channel}:memory?")
+
+                # Leer el encabezado inicial.
+                inBuffer = self.dso.read_bytes(10)
+                length = len(inBuffer)
+                headerlen = 2 + int(chr(inBuffer[1]))
+                pkg_length = int(inBuffer[2:headerlen]) + headerlen
+                pkg_length = pkg_length - length
+
+                while pkg_length > 0:
+                    # Determinar tamaño de paquete de lectura.
+                    chunk_size = min(pkg_length, 100000)
+
+                    try:
+                        buf = self.dso.read_bytes(chunk_size)
+                    except Exception as e:
+                        print(f"Error crítico al recibir el bloque de datos: {e}")
+                        raise RuntimeError(f"Fallo en la transferencia USB/VISA. Bloque de datos perdido.")
+
+                    inBuffer += buf
+                    pkg_length -= len(buf)
+
+                waveform, dt = self.unpack_waveform(inBuffer, headerlen, v_div)
+                return inBuffer, waveform, dt
+            else:
+                print('Error: Forma de onda aún no está lista en el instrumento.')
+                return None, None, None
+
+        except RuntimeError as re:
+            # Capturar específicamente el error del bloque de datos perdido.
+            print(f"Abortando captura: {re}")
+            self.close() # Libera el dso y el ResourceManager.
+            return None, None, None
+
+        except Exception as e:
+            # Capturar cualquier otro error de PyVISA o de conexión.
+            print(f"Error general en get_block_data: {e}")
+            # Devolver None para que la interfaz sepa que falló sin cerrarse.
+            return None, None, None
+    """
     def unpack_waveform(self, inBuffer, headerlen, vdiv):
         print(inBuffer[:headerlen])
         dt = unpack('>f', inBuffer[headerlen : headerlen + 4])[0]
@@ -517,11 +568,12 @@ class GWInstekGDS1000AU:
                 print("Error al cerrar la conexión con el instrumento:", e)
             finally:
                 self.dso = None
-        try:
-            self.rm.close()
-            print("Gestor de recursos cerrado exitosamente.")
-        except Exception as e:
-            print("Error al cerrar el gestor de recursos:", e)
+        if hasattr(self, 'rm') and self.rm is not None:
+            try:
+                self.rm.close()
+                print("Gestor de recursos cerrado exitosamente.")
+            except Exception as e:
+                print("Error al cerrar el gestor de recursos:", e)
 
     def __del__(self):
         # Asegura que los recursos se liberen cuando el objeto es destruido.

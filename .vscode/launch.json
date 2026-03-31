@@ -1,0 +1,25 @@
+{
+    "version": "0.2.0",
+    "configurations": [
+        {
+            "name": "PRUEBA",
+            "type": "debugpy",
+            "request": "launch",
+            "program": "${workspaceFolder}/src/main.py",
+            "console": "integratedTerminal",
+            "env": {
+                "DEBUG_MODE": "True"
+            }
+        },
+        {
+            "name": "PRODUCCIÓN",
+            "type": "debugpy",
+            "request": "launch",
+            "program": "${workspaceFolder}/src/main.py",
+            "console": "integratedTerminal",
+            "env": {
+                "DEBUG_MODE": "False"
+            }
+        }
+    ]
+}

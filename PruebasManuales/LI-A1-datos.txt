@@ -1,0 +1,5 @@
+IEC 61083-2 TDG Version 2.1.0
+Data File Version  2.1.0
+01 LI-A1
+14 bits, 20000 samples at 5ns, 0.4 percent noise
+5.000000e-009

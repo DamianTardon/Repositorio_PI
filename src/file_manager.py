@@ -34,25 +34,25 @@ class FileManager:
         for carpeta in [self.raw, self.analysis, self.results]:
             carpeta.mkdir(parents=True, exist_ok=True)
 
-    def get_new_filename(self, filename, extension=".bin"):
+    def get_new_filename(self, filename, extension):
         # Asegura que el nombre termine con la extensión solicitada.
         if not filename.endswith(extension):
             filename = f"{filename}{extension}"
 
-        if extension == ".bin":
+        if extension == ".csv":
             return self.raw / filename
         elif extension == ".h5":
             return self.analysis / filename
-        elif extension in [".png", ".pdf", ".csv"]:
+        elif extension in [".png", ".pdf"]:
             return self.results / filename
         else:
             return self.base / filename
 
     @staticmethod
-    def create_bin_int16(data, file_path):
-    # Crear BIN (int16): para guardar datos originales como copia de seguridad.
-        with open(file_path, "wb") as f:
-            f.write(data)
+    def create_csv(data, file_path):
+        # Crear CSV: para guardar una copia de seguridad datos originales de la onda.
+        df = pd.DataFrame(data)
+        df.to_csv(file_path, index=False)
 
     @staticmethod
     def read_bin_without_header(file_path):
@@ -97,15 +97,6 @@ class FileManager:
             waveform = raw_data / 25.0
 
         return waveform, dt
-
-    @staticmethod
-    def read_csv(file_path):
-        # 'usecols' leer SOLAMENTE esa columna.
-        df = pd.read_csv(file_path, usecols=["Tensión [V]"])
-
-        # df[titulo_columna] accede a los datos.
-        # .values lo convierte a un array de NumPy.
-        return df["Tensión [V]"].values
 
     @staticmethod
     def read_h5(file_path):
@@ -284,12 +275,8 @@ class FileManager:
                 t2_s = grp.attrs.get("T2", np.nan)
                 t2_us = round(t2_s * 1e6, 2) if not pd.isna(t2_s) else np.nan
 
-                # Formato de sobrepasamiento.
                 overshoot_val = grp.attrs.get("Overshoot", np.nan)
-                if pd.isna(overshoot_val):
-                    overshoot_str = "N/A"
-                else:
-                    overshoot_str = f"{overshoot_val:.2f}%"
+                overshoot = round(overshoot_val, 2) if not pd.isna(overshoot_val) else np.nan
 
                 # Condiciones ambientales.
                 t_db = grp.attrs.get("T_DB", np.nan)
@@ -300,18 +287,18 @@ class FileManager:
 
                 # Construir la fila.
                 data_list.append({
-                    "Ítem": item_name,
+                    "Item": item_name,
                     "Nombre de onda": wave_name,
                     "Polaridad": polarity,
                     "Valor Pico [kV]": peak_voltage_kv,
                     "T1 [µs]": t1_us,
                     "T2 [µs]": t2_us,
-                    "Sobrepasamiento": overshoot_str,
+                    "Sobrepasamiento [%]": overshoot,
                     "Temp. Seca [°C]": t_db,
-                    "Temp. Húmeda [°C]": t_wb,
+                    "Temp. Humeda [°C]": t_wb,
                     "Humedad Rel. [%]": rh,
                     "Humedad Abs. [g/m3]": ah,
-                    "Presión [hPa]": press
+                    "Presion [hPa]": press
                 })
 
         if not data_list:

@@ -8,8 +8,8 @@ from PySide6.QtGui import QRegularExpressionValidator, QIntValidator, QAction
 import pyqtgraph as pg
 from datetime import datetime
 
-#DEBUG_MODE = os.environ.get("DEBUG_MODE", "False") == "True"
-DEBUG_MODE = False
+DEBUG_MODE = os.environ.get("DEBUG_MODE", "False") == "True"
+#DEBUG_MODE = False
 
 class MockChannel2Analyzer:
     """
@@ -424,8 +424,8 @@ class MainController(QObject):
             # Extraer dt y convertir la lista de tensión a un array de NumPy.
             dt = metadata['sampling_period']
             waveform = np.array(data_list)
-            # Crear un inBuffer ficticio para que no falle al probar el botón de Guardar.
-            inBuffer = b'DATOS_DE_CALIBRACION_TDG'
+            # inBuffer ficticio para que no falle el botón de Guardar.
+            inBuffer = waveform
 
             # Simula leer en el canal principal activo.
             active_channel = 1 if self.ui.ch1_enabler.isChecked() else (2 if self.ui.ch2_enabler.isChecked() else 1)
@@ -865,16 +865,16 @@ class MainController(QObject):
             ch2_data = ch2_data
         )
 
-        # Guardar respaldos .bin originales.
+        # Guardar respaldo original de la onda.
         if 1 in self.last_acquired_data:
-            inBuffer1 = self.last_acquired_data[1][0] # El inBuffer es el primer elemento de la tupla.
-            bin_path1 = self.fm.get_new_filename(filename=f"{wave_filename}_V", extension=".bin")
-            self.fm.create_bin_int16(inBuffer1, bin_path1)
+            waveform1 = self.last_acquired_data[1][1]
+            path1 = self.fm.get_new_filename(filename=f"{wave_filename}_V", extension=".csv")
+            self.fm.create_csv(waveform1, path1)
 
         if 2 in self.last_acquired_data:
-            inBuffer2 = self.last_acquired_data[2][0]
-            bin_path2 = self.fm.get_new_filename(filename=f"{wave_filename}_A", extension=".bin")
-            self.fm.create_bin_int16(inBuffer2, bin_path2)
+            waveform2 = self.last_acquired_data[2][1]
+            path2 = self.fm.get_new_filename(filename=f"{wave_filename}_A", extension=".csv")
+            self.fm.create_csv(waveform2, path2)
 
         # Actualizar UI, Menú y Gráficos.
         if success_ch1:
@@ -1134,12 +1134,12 @@ class MainController(QObject):
         # Direccionar por defecto a la carpeta "03 Resultados".
         default_path = str(self.fm.results / default_name)
 
-        # Diálogo de guardado restringido a XLSX o CSV.
+        # Diálogo de guardado restringido a XLSX.
         file_path, selected_filter = QFileDialog.getSaveFileName(
             self.ui.centralwidget,
             "Exportar Resultados",
             default_path,
-            "Excel (*.xlsx);;CSV (*.csv)")
+            "Excel (*.xlsx)")
 
         if not file_path:
             return # El usuario canceló el diálogo.

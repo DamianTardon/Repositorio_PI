@@ -6,7 +6,7 @@ from ui_graphic_user_interface import Ui_MainWindow
 from file_manager import FileManager
 from impulse_analyzer import LightningImpulseAnalyzer
 from gw_instek_gds1000a_u import GWInstekGDS1000AU
-from controller import MainController
+from presenter import MainPresenter
 
 class MainWindow(QMainWindow, Ui_MainWindow):
     # Unir la ventana de PySide6 con el diseño generado.
@@ -24,8 +24,8 @@ if __name__ == "__main__":
     oscilloscope = GWInstekGDS1000AU()
     file_system = FileManager()
 
-    # Iniciar el Controlador (Vista - Modelo).
-    app_controller = MainController(window, oscilloscope, file_system, LightningImpulseAnalyzer)
+    # Iniciar el Presentador (Vista - Modelo).
+    app_presenter = MainPresenter(window, oscilloscope, file_system, LightningImpulseAnalyzer)
 
     # Mostrar y ejecutar.
     window.show()

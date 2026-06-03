@@ -58,7 +58,7 @@ class WaitWaveformThread(QThread):
     def stop(self):
         self._is_running = False
 
-class MainController(QObject):
+class MainPresenter(QObject):
     def __init__(self, ui, oscilloscope, file_manager, analyzer_class):
         super().__init__()
         self.ui = ui

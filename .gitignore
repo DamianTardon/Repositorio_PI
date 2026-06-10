@@ -1,5 +1,6 @@
 **/__pycache__/
 *.pyc
+*.exe
 
 # PyInstaller
 build/
@@ -11,4 +12,5 @@ dist/
 *.dist/
 *.onefile-build/
 
-*.exe
+# Documentación (borrador)
+doc1/

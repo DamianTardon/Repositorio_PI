@@ -1,7 +1,5 @@
 import numpy as np
-import matplotlib.pyplot as plt
 from fpdf import FPDF
-from datetime import datetime
 
 def print_information_TDG(metadata, data):
     print(f"Versión de TDG: {metadata['software_version']}")
@@ -41,7 +39,9 @@ class ReportPDF(FPDF):
         self.cell(0, 6, f"Parámetros validados: {', '.join(self.software_meta['parameters'])}", new_x="LMARGIN", new_y="NEXT")
 
         # TDG.
-        if self.tdg_meta:
+        if not self.tdg_meta:
+            raise ValueError("No se puede generar el reporte: Faltan los metadatos del TDG.")
+        else:
             self.cell(0, 6, f"Generador de Datos de prueba (TDG): {self.tdg_meta.get('software_version', 'N/A')}", new_x="LMARGIN", new_y="NEXT")
             self.cell(0, 6, f"Resolución TDG: {self.tdg_meta.get('resolution', 'N/A')} | Tasa de Muestreo (Rate): {self.tdg_meta.get('rate', 'N/A')}", new_x="LMARGIN", new_y="NEXT")
         self.ln(5)

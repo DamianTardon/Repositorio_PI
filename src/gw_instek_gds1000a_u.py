@@ -1,15 +1,49 @@
+"""Módulo de interfaz de hardware para el osciloscopio GW Instek de la serie GDS-1000A-U.
+
+Este módulo encapsula todas las operaciones de control síncrono, configuración
+de canales, manipulación del sistema de disparo (trigger) y adquisición de datos binarios
+desde el osciloscopio mediante comandos SCPI sobre PyVISA.
+"""
+from __future__ import annotations
+
 import time
 from struct import unpack
 import sys
 import pyvisa
 import numpy as np
 
+# Importaciones exclusivas para el tipado estático
+from typing import Optional, Tuple, Union
+
 class GWInstekGDS1000AU:
-    # Constante de cuantización vertical del ADC, específica del modelo.
+    """Controlador programático para el osciloscopio digital GW Instek de la serie GDS-1000A-U.
+
+    Administra la apertura y cierre de sesiones VISA, el formateo de comandos de 
+    escritura/lectura SCPI y la decodificación de tramas binarias procedentes de la 
+    memoria interna del instrumento. 
+
+    Note:
+        La clase implementa un estricto mecanismo de protección (failsafe): ante cualquier 
+        excepción de E/S o pérdida de comunicación detectada en los métodos operativos, 
+        el error es capturado internamente y se invoca automáticamente al método :meth:`close` 
+        para asegurar la liberación del recurso VISA y evitar bloqueos en el bus.
+
+    Attributes:
+        ADC_STEPS_PER_DIV (float): Constante de cuantización vertical del conversor ADC, 
+            específica de la serie GW Instek GDS-1000A-U (25.0 puntos por división).
+        rm (pyvisa.ResourceManager): Gestor global de recursos de la plataforma VISA (backend '@py').
+        dso (Optional[pyvisa.resources.Resource]): Instancia del objeto VISA que representa al instrumento activo.
+    """
+
+    #: Constante de cuantización vertical del ADC, específica del modelo.
     ADC_STEPS_PER_DIV = 25.0
 
-    def __init__(self):
-        # Inicializa el sistema VISA y opcionalmente conecta a un instrumento.
+    def __init__(self) -> None:
+        """Inicializa el gestor de recursos de PyVISA y busca dispositivos compatibles.
+
+        Intenta establecer una conexión automática con el primer instrumento detectado
+        en la lista de recursos activos del sistema invocando a :meth:`connect`.
+        """
         self.dso = None
         self.rm = pyvisa.ResourceManager('@py')
 
@@ -19,8 +53,17 @@ class GWInstekGDS1000AU:
         if instrument_list:
             self.connect(instrument_list[0])
 
-    def connect(self, resource_name):
-        # Conecta al instrumento utilizando el nombre del recurso.
+    def connect(self, resource_name: str) -> None:
+        """Establece la conexión física y lógica con el osciloscopio especificado.
+
+        Configura los caracteres de terminación de línea (``\\n``) y consulta la 
+        identificación estándar (``*IDN?``). Si ocurre una excepción durante la conexión,
+        el error se captura y se fuerza un ciclo de cierre mediante :meth:`close`.
+
+        Args:
+            resource_name (str): Cadena de texto de dirección del recurso VISA 
+                (ej. 'USB0::0x...::INSTR').
+        """
         try:
             self.dso = self.rm.open_resource(resource_name)
             self.dso.read_termination = '\n'
@@ -31,7 +74,25 @@ class GWInstekGDS1000AU:
             print("Error al iniciar con el instrumento:", e)
             self.close()
 
-    def get_block_data(self, channel):
+    def get_block_data(self, channel: int) -> Tuple[Optional[bytes], Optional[np.ndarray], Optional[float]]:
+        """Adquiere el bloque binario completo de la forma de onda activa en la memoria del canal.
+
+        Gestiona el handshake SCPI comprobando el estado de captura y solicitando 
+        el buffer de memoria. La lectura se particiona iterativamente en fragmentos 
+        máximos de :math:`\qty{100000}{\byte}` para evitar desbordamientos del bus USB.
+        Ante cualquier excepción de E/S, captura el error, invoca a :meth:`close` y aborta.
+
+        Args:
+            channel (int): Identificador numérico del canal físico (1 o 2).
+
+        Returns:
+            Tuple[Optional[bytes], Optional[np.ndarray], Optional[float]]: Una tupla que contiene:
+                - Buffer crudo de bytes (``inBuffer``).
+                - Vector de tensión de la onda en :math:`\unit{\volt}` (``waveform``).
+                - Periodo de muestreo temporal en :math:`\unit{\second}` (``dt``).
+                Si ocurre un error de hardware o la onda no está lista, retorna 
+                ``(None, None, None)``.
+        """
         try:
             v_div = self.get_channel_scale(channel)
             self.dso.write(f':acquire{channel}:state?')
@@ -124,7 +185,25 @@ class GWInstekGDS1000AU:
             # Devolver None para que la interfaz sepa que falló sin cerrarse.
             return None, None, None
     """
-    def unpack_waveform(self, inBuffer, headerlen, vdiv):
+    def unpack_waveform(self, inBuffer: bytes, headerlen: int, vdiv: float) -> Tuple[np.ndarray, float]:
+        """Decodifica el buffer de bytes IEEE en vectores matemáticos de tensión y tiempo.
+
+        Extrae el periodo de muestreo temporal (:math:`dt`) del encabezado flotante y convierte 
+        los datos RAW de 16-bits a valores de tensión absoluta utilizando la constante 
+        del conversor ADC.
+
+        .. math::
+            V = RAW \cdot \frac{V_{div}}{ADC_{steps}}
+
+        Args:
+            inBuffer (bytes): Cadena de bytes en bruto descargada vía VISA.
+            headerlen (int): Longitud dinámica calculada del encabezado SCPI de bloque.
+            vdiv (float): Escala vertical actual del canal en :math:`\unit{\volt/\text{div}}`.
+
+        Returns:
+            Tuple[np.ndarray, float]: Vector de tensión de la onda en :math:`\unit{\volt}` 
+            y el periodo de muestreo en :math:`\unit{\second}`.
+        """
         print(inBuffer[:headerlen])
         dt = unpack('>f', inBuffer[headerlen : headerlen + 4])[0]
         print(f'Periodo de muestreo = {dt*1e9:.0f} [ns]')
@@ -135,7 +214,13 @@ class GWInstekGDS1000AU:
         waveform = waveform_raw * vdiv / self.ADC_STEPS_PER_DIV
         return waveform, dt
 
-    def default_settings(self):
+    def default_settings(self) -> None:
+        """Restablece los registros internos del osciloscopio a sus
+        valores de fábrica (``*RST``).
+        
+        En caso de error en la transmisión SCPI, captura la excepción
+        y ejecuta :meth:`close`.
+        """
         try:
             self.dso.write('*RST')
             print("Se restableció el instrumento a la configuración de fábrica exitosamente.")
@@ -143,7 +228,11 @@ class GWInstekGDS1000AU:
             print("Error al restablecer el instrumento:", e)
             self.close()
 
-    def get_setting(self):
+    def get_setting(self) -> None:
+        """Consulta e imprime por consola la configuración actual del instrumento (``*LRN?``).
+
+        En caso de error de lectura, captura la excepción y ejecuta :meth:`close`.
+        """
         try:
             current_setting = self.dso.query('*LRN?')
             print(f"Configuracion actual: {current_setting}")
@@ -151,7 +240,18 @@ class GWInstekGDS1000AU:
             print("Error al consultar configuración:", e)
             self.close()
 
-    def get_channel_scale(self, channel):
+    def get_channel_scale(self, channel: int) -> Optional[float]:
+        """Consulta la escala vertical configurada en un canal determinado.
+
+        Si se produce una excepción de hardware, se invoca a :meth:`close` y se aborta el retorno.
+
+        Args:
+            channel (int): Canal a consultar (1 o 2).
+
+        Returns:
+            Optional[float]: Valor de escala vertical en :math:`\unit{\volt/\text{div}}`, 
+            o ``None`` en caso de error de comunicación.
+        """
         try:
             scale = self.dso.query(f':channel{channel}:scale?')
             v_scale = float(scale)
@@ -161,7 +261,15 @@ class GWInstekGDS1000AU:
             print("Error al obtener la escala vertical:", e)
             self.close()
 
-    def set_channel_scale(self, channel, value):
+    def set_channel_scale(self, channel: int, value: float) -> None:
+        """Configura la escala vertical en el canal seleccionado.
+
+        Si ocurre un fallo durante la escritura, captura la excepción e invoca :meth:`close`.
+
+        Args:
+            channel (int): Canal del osciloscopio a modificar (1 o 2).
+            value (float): Tensión por división requerida en :math:`\unit{\volt/\text{div}}`.
+        """
         try:
             self.dso.write(f':channel{channel}:scale {value}')
             v_scale = self.get_channel_scale(channel)
@@ -173,7 +281,15 @@ class GWInstekGDS1000AU:
             print("Error al configurar la escala vertical:", e)
             self.close()
 
-    def get_timebase_scale(self):
+    def get_timebase_scale(self) -> Optional[float]:
+        """Consulta el valor de la base de tiempo horizontal.
+
+        Ante una falla de bus, se invoca a :meth:`close` automáticamente.
+
+        Returns:
+            Optional[float]: Escala de tiempo en :math:`\unit{\second/\text{div}}`, 
+            o ``None`` en caso de error.
+        """
         try:
             scale = self.dso.query(':timebase:scale?')
             h_scale = float(scale)
@@ -183,7 +299,14 @@ class GWInstekGDS1000AU:
             print("Error al obtener la escala horizontal:", e)
             self.close()
 
-    def set_timebase_scale(self, value):
+    def set_timebase_scale(self, value: float) -> None:
+        """Configura la base de tiempo horizontal para la digitalización.
+
+        Cualquier error de E/S capturado activará :meth:`close`.
+
+        Args:
+            value (float): Tiempo por división requerido en :math:`\unit{\second/\text{div}}`.
+        """
         try:
             self.dso.write(f':timebase:scale {value}')
             h_scale = self.get_timebase_scale()
@@ -195,7 +318,14 @@ class GWInstekGDS1000AU:
             print("Error al configurar la escala horizontal:", e)
             self.close()
 
-    def get_timebase_position(self):
+    def get_timebase_position(self) -> Optional[float]:
+        """Consulta la posición horizontal (delay) del punto de disparo en el eje temporal.
+
+        Captura internamente excepciones para forzar la liberación del instrumento con :meth:`close`.
+
+        Returns:
+            Optional[float]: Desplazamiento temporal en :math:`\unit{\second}`, o ``None`` en caso de error.
+        """
         try:
             position = float(self.dso.query(':timebase:delay?'))
             print(f'Posición horizontal: {position} [s]')
@@ -204,7 +334,14 @@ class GWInstekGDS1000AU:
             print("Error al obtener la posición horizontal:", e)
             self.close()
 
-    def set_timebase_position(self, value):
+    def set_timebase_position(self, value: float) -> None:
+        """Configura la posición horizontal (delay) del punto de disparo en el eje temporal.
+
+        En caso de falla de comando, captura la excepción e invoca :meth:`close`.
+
+        Args:
+            value (float): Tiempo de retardo en :math:`\unit{\second}`.
+        """
         try:
             self.dso.write(f':timebase:delay {value}')
             position = self.get_timebase_position()
@@ -215,7 +352,8 @@ class GWInstekGDS1000AU:
         except Exception as e:
             print("Error al configurar la posición horizontal:", e)
             self.close()
-
+#------------------------------------------------------------------------------------------
+    # Posiblemente este método es inútil.
     def set_trigger(self, trigger_mode):
         try:
             self.dso.write(trigger_mode)
@@ -223,6 +361,7 @@ class GWInstekGDS1000AU:
         except Exception as e:
             print("Error al configurar el modo de disparo:", e)
             self.close()
+#------------------------------------------------------------------------------------------
 
     def get_trigger_level(self):
         try:

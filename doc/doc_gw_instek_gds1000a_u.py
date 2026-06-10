@@ -1,418 +1,516 @@
+"""Módulo de interfaz de hardware para el osciloscopio GW Instek de la serie GDS-1000A-U.
+
+Este módulo encapsula todas las operaciones de control síncrono, configuración
+de canales, manipulación del sistema de disparo (trigger) y adquisición de datos binarios
+desde el osciloscopio mediante comandos SCPI sobre PyVISA.
+"""
 from __future__ import annotations
+
+# Importaciones originales del código fuente
+import time
+from struct import unpack
+import sys
 import pyvisa
 import numpy as np
-from typing import Union, Tuple, Optional, Any
+
+# Importaciones exclusivas para el tipado estático
+from typing import Optional, Tuple, Union
 
 class GWInstekGDS1000AU:
-    """Controlador de hardware vía interfaz SCPI/VISA para el osciloscopio digital GW Instek serie GDS-1000A-U.
+    """Controlador programático para el osciloscopio digital GW Instek de la serie GDS-1000A-U.
 
-    Proporciona una abstracción de alto nivel para gestionar la conexión USB/Ethernet, configuración de 
-    parámetros de adquisición (escalas, trigger, offsets) y descarga de datos binarios masivos de la memoria
-    interna del instrumento.
+    Administra la apertura y cierre de sesiones VISA, el formateo de comandos de 
+    escritura/lectura SCPI y la decodificación de tramas binarias procedentes de la 
+    memoria interna del instrumento. 
+
+    Note:
+        La clase implementa un estricto mecanismo de protección (failsafe): ante cualquier 
+        excepción de E/S o pérdida de comunicación detectada en los métodos operativos, 
+        el error es capturado internamente y se invoca automáticamente al método :meth:`close` 
+        para asegurar la liberación del recurso VISA y evitar bloqueos en el bus.
 
     Attributes:
-        ADC_STEPS_PER_DIV (float): Constante geométrica de cuantización vertical del conversor ADC, 
-            específica del hardware (típicamente 25.0 puntos por división).
-        rm (pyvisa.ResourceManager): Gestor de recursos de PyVISA (backend '@py').
+        ADC_STEPS_PER_DIV (float): Constante de cuantización vertical del conversor ADC, 
+            específica de la serie GW Instek GDS-1000A-U (25.0 puntos por división).
+        rm (pyvisa.ResourceManager): Gestor global de recursos de la plataforma VISA (backend '@py').
         dso (Optional[pyvisa.resources.Resource]): Instancia del objeto VISA que representa al instrumento activo.
     """
 
-    ADC_STEPS_PER_DIV = 25.0
+    #: Constante de cuantización vertical del ADC.
+    ADC_STEPS_PER_DIV: float = 25.0
 
     def __init__(self) -> None:
-        """Inicializa el backend VISA, escanea los puertos disponibles y autoconecta al primer recurso hallado."""
-        ...
+        """Inicializa el gestor de recursos de PyVISA y busca dispositivos compatibles.
+
+        Intenta establecer una conexión automática con el primer instrumento detectado
+        en la lista de recursos activos del sistema invocando a :meth:`connect`.
+        """
+        pass
 
     def connect(self, resource_name: str) -> None:
-        """Establece la conexión de datos con el instrumento dado su identificador de recurso.
+        """Establece la conexión física y lógica con el osciloscopio especificado.
 
-        Configura los caracteres de terminación de línea y consulta la identificación estándar (`*IDN?`).
+        Configura los caracteres de terminación de línea (``\\n``) y consulta la 
+        identificación estándar (``*IDN?``). Si ocurre una excepción durante la conexión,
+        el error se captura y se fuerza un ciclo de cierre mediante :meth:`close`.
 
         Args:
-            resource_name (str): Cadena de identificación del recurso VISA (ej. 'USB0::0x...::INSTR').
+            resource_name (str): Cadena de texto de dirección del recurso VISA 
+                (ej. 'USB0::0x...::INSTR').
         """
-        ...
+        pass
 
     def get_block_data(self, channel: int) -> Tuple[Optional[bytes], Optional[np.ndarray], Optional[float]]:
-        """Descarga la forma de onda completa desde la memoria de adquisición del osciloscopio.
+        """Adquiere el bloque binario completo de la forma de onda activa en la memoria del canal.
 
-        Comprueba si el estado de captura está listo. Luego, descarga el bloque de datos binarios
-        por chunks, parsea el encabezado IEEE, y delega la reconstrucción matemática de la señal.
+        Gestiona el handshake SCPI comprobando el estado de captura y solicitando 
+        el buffer de memoria. La lectura se particiona iterativamente en fragmentos 
+        máximos de :math:`\qty{100000}{\byte}` para evitar desbordamientos del bus USB.
+        Ante cualquier excepción de E/S, captura el error, invoca a :meth:`close` y aborta.
 
         Args:
-            channel (int): Número de canal físico a descargar (1 o 2).
+            channel (int): Identificador numérico del canal físico (1 o 2).
 
         Returns:
-            Tuple[Optional[bytes], Optional[np.ndarray], Optional[float]]: 
-                - Buffer crudo de bytes (`inBuffer`).
-                - Vector de tensión de la onda en Voltios (`waveform`).
-                - Periodo de muestreo temporal en segundos (`dt`).
-                Retorna `(None, None, None)` en caso de error o si la onda no está lista.
+            Tuple[Optional[bytes], Optional[np.ndarray], Optional[float]]: Una tupla que contiene:
+                - Buffer crudo de bytes (``inBuffer``).
+                - Vector de tensión de la onda en :math:`\unit{\volt}` (``waveform``).
+                - Periodo de muestreo temporal en :math:`\unit{\second}` (``dt``).
+                Si ocurre un error de hardware o la onda no está lista, retorna 
+                ``(None, None, None)``.
         """
-        ...
+        pass
 
     def unpack_waveform(self, inBuffer: bytes, headerlen: int, vdiv: float) -> Tuple[np.ndarray, float]:
         """Decodifica el buffer de bytes IEEE en vectores matemáticos de tensión y tiempo.
 
-        Extrae el periodo de muestreo temporal ($dt$) del encabezado flotante y convierte los datos 
-        RAW de 16-bits a valores de tensión absoluta utilizando la constante geométrica del conversor ADC.
-        Fórmula: 
-            $$V = RAW \cdot \frac{V_{div}}{ADC_{steps}}$$
+        Extrae el periodo de muestreo temporal (:math:`dt`) del encabezado flotante y convierte 
+        los datos RAW de 16-bits a valores de tensión absoluta utilizando la constante 
+        del conversor ADC.
+
+        .. math::
+            V = RAW \cdot \frac{V_{div}}{ADC_{steps}}
 
         Args:
             inBuffer (bytes): Cadena de bytes en bruto descargada vía VISA.
-            headerlen (int): Longitud dinámica del encabezado SCPI de bloque.
-            vdiv (float): Escala vertical actual del canal en V/div.
+            headerlen (int): Longitud dinámica calculada del encabezado SCPI de bloque.
+            vdiv (float): Escala vertical actual del canal en :math:`\unit{\volt/\text{div}}`.
 
         Returns:
-            Tuple[np.ndarray, float]: (Vector de tensiones de la onda `np.ndarray`, periodo de muestreo `float`).
+            Tuple[np.ndarray, float]: Vector de tensión de la onda en :math:`\unit{\volt}` 
+            y el periodo de muestreo en :math:`\unit{\second}`.
         """
-        ...
+        pass
 
     def default_settings(self) -> None:
-        """Restablece el osciloscopio a sus parámetros de fábrica mediante el comando SCPI `*RST`."""
-        ...
+        """Restablece los registros internos del osciloscopio a sus
+        valores de fábrica (``*RST``).
+        
+        En caso de error en la transmisión SCPI, captura la excepción
+        y ejecuta :meth:`close`.
+        """
+        pass
 
     def get_setting(self) -> None:
-        """Consulta e imprime por consola el string de configuración actual (`*LRN?`)."""
-        ...
+        """Consulta e imprime por consola la configuración actual del instrumento (``*LRN?``).
+
+        En caso de error de lectura, captura la excepción y ejecuta :meth:`close`.
+        """
+        pass
 
     def get_channel_scale(self, channel: int) -> Optional[float]:
-        """Consulta la escala vertical activa de un canal.
+        """Consulta la escala vertical configurada en un canal determinado.
+
+        Si se produce una excepción de hardware, se invoca a :meth:`close` y se aborta el retorno.
 
         Args:
-            channel (int): Identificador de canal (1 o 2).
+            channel (int): Canal a consultar (1 o 2).
 
         Returns:
-            Optional[float]: Escala vertical en V/div.
+            Optional[float]: Valor de escala vertical en :math:`\unit{\volt/\text{div}}`, 
+            o ``None`` en caso de error de comunicación.
         """
-        ...
+        pass
 
     def set_channel_scale(self, channel: int, value: float) -> None:
-        """Configura la escala vertical (Voltage/Division) de un canal físico.
+        """Configura la escala vertical en el canal seleccionado.
+
+        Si ocurre un fallo durante la escritura, captura la excepción e invoca :meth:`close`.
 
         Args:
-            channel (int): Identificador de canal (1 o 2).
-            value (float): Escala en V/div (ej. 5.0).
+            channel (int): Canal del osciloscopio a modificar (1 o 2).
+            value (float): Tensión por división requerida en :math:`\unit{\volt/\text{div}}`.
         """
-        ...
+        pass
 
     def get_timebase_scale(self) -> Optional[float]:
-        """Consulta la escala de la base de tiempo global del instrumento.
+        """Consulta el valor de la base de tiempo horizontal.
+
+        Ante una falla de bus, se invoca a :meth:`close` automáticamente.
 
         Returns:
-            Optional[float]: Periodo de la base de tiempo en segundos/división.
+            Optional[float]: Escala de tiempo en :math:`\unit{\second/\text{div}}`, 
+            o ``None`` en caso de error.
         """
-        ...
+        pass
 
     def set_timebase_scale(self, value: float) -> None:
-        """Configura la escala de la base de tiempo global (Time/Division).
+        """Configura la base de tiempo horizontal para la digitalización.
+
+        Cualquier error de E/S capturado activará :meth:`close`.
 
         Args:
-            value (float): Escala de tiempo en segundos/división.
+            value (float): Tiempo por división requerido en :math:`\unit{\second/\text{div}}`.
         """
-        ...
+        pass
 
     def get_timebase_position(self) -> Optional[float]:
-        """Consulta el desfase u offset horizontal global (Delay).
+        """Consulta la posición horizontal (delay) del punto de disparo en el eje temporal.
+
+        Captura internamente excepciones para forzar la liberación del instrumento con :meth:`close`.
 
         Returns:
-            Optional[float]: Posición horizontal temporal respecto al trigger en segundos.
+            Optional[float]: Desplazamiento temporal en :math:`\unit{\second}`, o ``None`` en caso de error.
         """
-        ...
+        pass
 
     def set_timebase_position(self, value: float) -> None:
-        """Configura el desplazamiento u offset horizontal global (Delay).
+        """Configura la posición horizontal (delay) del punto de disparo en el eje temporal.
+
+        En caso de falla de comando, captura la excepción e invoca :meth:`close`.
 
         Args:
-            value (float): Tiempo de desplazamiento en segundos.
+            value (float): Tiempo de retardo en :math:`\unit{\second}`.
         """
-        ...
+        pass
 
     def set_trigger(self, trigger_mode: str) -> None:
-        """Envía una cadena SCPI en bruto para la configuración del trigger.
+        """Envía comandos SCPI directos para modificar el comportamiento analógico del trigger.
+
+        Falla de forma segura invocando a :meth:`close` si ocurre un error SCPI.
 
         Args:
-            trigger_mode (str): Cadena de comando SCPI completa.
+            trigger_mode (str): Comando literal de configuración de trigger (ej. ':trigger:mode 1').
         """
-        ...
+        # Posiblemente este método es inútil.
+        pass
 
     def get_trigger_level(self) -> Optional[float]:
-        """Consulta el nivel absoluto de tensión utilizado como umbral de disparo.
+        """Consulta el umbral absoluto de tensión utilizado para la detección del flanco de disparo.
 
         Returns:
-            Optional[float]: Nivel de disparo en Voltios.
+            Optional[float]: Nivel de trigger en :math:`\unit{\volt}`, o ``None`` si se produce 
+            un error de hardware (activando :meth:`close`).
         """
-        ...
+        pass
 
     def set_trigger_level(self, trigger_level: float) -> None:
-        """Establece el nivel de tensión de umbral para el disparo del osciloscopio.
+        """Modifica el umbral analógico de tensión de disparo.
+
+        Captura excepciones durante el ajuste y fuerza un ciclo :meth:`close`.
 
         Args:
-            trigger_level (float): Nivel absoluto de disparo en Voltios.
+            trigger_level (float): Tensión requerida en :math:`\unit{\volt}`.
         """
-        ...
+        pass
 
     def get_trigger_coupling(self) -> Optional[str]:
-        """Consulta el acoplamiento eléctrico del circuito de disparo.
+        """Consulta el acoplamiento eléctrico del circuito del trigger.
 
         Returns:
-            Optional[str]: 'AC' o 'DC'.
+            Optional[str]: Modo de acoplamiento analógico detectado ('AC' o 'DC'), o ``None`` 
+            en caso de error (con invocación a :meth:`close`).
         """
-        ...
+        pass
 
     def set_trigger_coupling(self, coupling: int) -> None:
-        """Configura el acoplamiento del circuito de disparo del osciloscopio.
+        """Establece el acoplamiento de señal en la etapa de trigger.
+
+        Captura cualquier fallo de conexión y redirige a :meth:`close`.
 
         Args:
-            coupling (int): 0 para 'AC', 1 para 'DC'.
+            coupling (int): Índice de modo: 0 para 'AC', 1 para 'DC'.
         """
-        ...
+        pass
 
     def get_trigger_mode(self) -> Optional[str]:
-        """Consulta el modo operacional de disparo activo.
+        """Obtiene el modo operacional de barrido del trigger.
 
         Returns:
-            Optional[str]: 'Auto' o 'Normal'.
+            Optional[str]: Cadena descriptiva del modo ('Auto' o 'Normal'), o ``None`` 
+            si falla el dispositivo (activando :meth:`close`).
         """
-        ...
+        pass
 
     def set_trigger_mode(self, mode: int) -> None:
-        """Configura el modo de adquisición ante eventos de disparo.
+        """Configura el modo operacional de adquisición ante eventos de disparo.
+
+        Si se interrumpe la comunicación, atrapa la excepción y libera mediante :meth:`close`.
 
         Args:
-            mode (int): 0 para 'Auto' (disparo iterativo), 1 para 'Normal'.
+            mode (int): Índice de selección: 0 para 'Auto', 1 para 'Normal'.
         """
-        ...
+        pass
 
     def get_trigger_nrej(self) -> Optional[str]:
-        """Consulta el estado del filtro de rechazo de ruido acoplado al trigger.
+        """Consulta el estado del circuito analógico de rechazo de ruido acoplado al trigger.
 
         Returns:
-            Optional[str]: 'OFF' o 'ON'.
+            Optional[str]: Estado de conmutación ('OFF' o 'ON'), o ``None`` ante fallos 
+            (forzando :meth:`close`).
         """
-        ...
+        pass
 
     def set_trigger_nrej(self, state: int) -> None:
-        """Habilita o deshabilita el filtro de histéresis de rechazo de ruido de trigger.
+        """Habilita o deshabilita la filtración de histéresis de ruido en el bloque del trigger.
+
+        Desencadena un ciclo failsafe (:meth:`close`) ante excepciones SCPI.
 
         Args:
-            state (int): 0 para 'OFF', 1 para 'ON'.
+            state (int): 0 para apagar ('OFF'), 1 para encender ('ON').
         """
-        ...
+        pass
 
     def get_trigger_reject(self) -> Optional[str]:
-        """Consulta el filtro de frecuencia en el acople de disparo.
+        """Obtiene el tipo de filtrado de rechazo de frecuencia activo.
 
         Returns:
-            Optional[str]: 'OFF', 'LF' (Low Frequency), o 'HF' (High Frequency).
+            Optional[str]: Modo de filtrado ('OFF', 'LF', 'HF'), o ``None`` si falla la 
+            lectura e invoca :meth:`close`.
         """
-        ...
+        pass
 
     def set_trigger_reject(self, mode: int) -> None:
-        """Configura un filtro de corte de frecuencias específico en la etapa de disparo.
+        """Configura filtros físicos de corte de frecuencia sobre el nodo analógico de trigger.
+
+        Captura errores de hardware y asegura el instrumento con :meth:`close`.
 
         Args:
-            mode (int): 0 ('OFF'), 1 ('LF'), 2 ('HF').
+            mode (int): Selector numérico: 0 para 'OFF', 1 para baja frecuencia ('LF'), 
+                2 para alta frecuencia ('HF').
         """
-        ...
+        pass
 
     def get_trigger_slope(self) -> Optional[str]:
-        """Consulta el flanco del borde de disparo seleccionado.
+        """Consulta el tipo de pendiente analógica (flanco) asignada para el disparo.
 
         Returns:
-            Optional[str]: 'Positivo' o 'Negativo'.
+            Optional[str]: Dirección de pendiente detectada ('Positivo' o 'Negativo'), o ``None`` 
+            ante fallos operacionales.
         """
-        ...
+        pass
 
     def set_trigger_slope(self, slope: int) -> None:
-        """Configura el flanco sensitivo (borde) sobre el cual se evalúa el disparo.
+        """Configura la polaridad del flanco transitorio sobre el cual se evalúa el disparo.
+
+        Un fallo durante el ajuste capturará la excepción y llamará a :meth:`close`.
 
         Args:
-            slope (int): 0 para Flanco Positivo, 1 para Flanco Negativo.
+            slope (int): Dirección requerida: 0 para 'Positivo', 1 para 'Negativo'.
         """
-        ...
+        pass
 
     def get_trigger_state(self) -> Optional[str]:
-        """Monitorea el registro interno de estado del evento de captura del trigger.
+        """Verifica en tiempo real si el hardware del osciloscopio capturó un evento válido.
 
         Returns:
-            Optional[str]: 'No disparado' o 'Disparado'.
+            Optional[str]: Estado síncrono de la captura ('No disparado' o 'Disparado'), 
+            o ``None`` si se pierde la conexión y se fuerza el :meth:`close`.
         """
-        ...
+        pass
 
     def get_trigger_source(self) -> Optional[str]:
-        """Consulta el canal de origen desde donde se alimenta el circuito de disparo.
+        """Consulta cuál canal físico actúa como la fuente de trigger actual.
 
         Returns:
-            Optional[str]: Fuente del trigger ('Canal 1', 'Canal 2', 'Externo', 'Red').
+            Optional[str]: Identificador analógico de fuente ('Canal 1', 'Canal 2', 
+            'Externo', 'Red'), o ``None`` en caso de excepción manejada.
         """
-        ...
+        pass
 
     def set_trigger_source(self, source: int) -> None:
-        """Asigna la entrada física como fuente para el evento de disparo.
+        """Establece la señal física de referencia acoplada al comparador del trigger.
+
+        Asegura la sesión VISA mediante :meth:`close` si falla la configuración.
 
         Args:
-            source (int): Índice de hardware (0: 'CH1', 1: 'CH2', 2: 'EXT', 3: 'LINE').
+            source (int): Código de mapeo: 0 para 'Canal 1', 1 para 'Canal 2', 
+                2 para 'Externo', 3 para 'Red'.
         """
-        ...
+        pass
 
     def get_trigger_type(self) -> Optional[str]:
-        """Consulta el tipo de topología de disparo configurado.
+        """Obtiene el tipo de topología algorítmica de trigger activo en el osciloscopio.
 
         Returns:
-            Optional[str]: Topología ('Edge', 'Video', 'Pulse').
+            Optional[str]: Descriptor del modo de trigger ('Edge', 'Video', 'Pulse'), 
+            o ``None`` tras capturar una excepción de lectura.
         """
-        ...
+        pass
 
     def set_trigger_type(self, ttype: int) -> None:
-        """Configura la topología del evento de disparo.
+        """Configura el tipo matemático de discriminación para el evento de disparo.
+
+        Si la conexión falla, redirige a la rutina de :meth:`close`.
 
         Args:
-            ttype (int): Índice de la topología (0: 'Edge', 1: 'Video', 2: 'Pulse').
+            ttype (int): Selector de tipo: 0 para 'Edge', 1 para 'Video', 2 para 'Pulse'.
         """
-        ...
+        pass
 
     def get_acquire_mode(self) -> Optional[str]:
         """Consulta el modo de adquisición algorítmica y filtrado post-digitalización.
 
         Returns:
-            Optional[str]: 'Normal', 'Peak detect', o 'Average'.
+            Optional[str]: Descriptor de adquisición ('Normal', 'Peak detect', 'Average'), 
+            o ``None`` tras fallar de forma segura en :meth:`close`.
         """
-        ...
+        pass
 
     def set_acquire_mode(self, mode: int) -> None:
-        """Configura la topología de muestreo y filtrado interno del instrumento.
+        """Ajusta el procesamiento digital del hardware para el muestreo interno.
+
+        Captura errores de escritura VISA e invoca de inmediato a :meth:`close`.
 
         Args:
-            mode (int): 0 ('Normal'), 1 ('Peak detect'), 2 ('Average').
+            mode (int): Constante de conmutación: 0 para 'Normal', 1 para 'Peak detect', 
+                2 para 'Average'.
         """
-        ...
+        pass
 
     def get_channel_coupling(self, channel: int) -> Optional[str]:
-        """Consulta el filtro de acoplamiento de la entrada física de un canal analógico.
-
-        Args:
-            channel (int): Identificador de canal (1 o 2).
+        """Consulta el tipo de acoplamiento galvánico de entrada del canal analógico.
 
         Returns:
-            Optional[str]: Tipo de acoplamiento eléctrico ('AC', 'DC', 'GND').
+            Optional[str]: Estado de acoplamiento de entrada ('AC', 'DC', 'GND'), o ``None`` 
+            ante fallas del bus manejadas por :meth:`close`.
         """
-        ...
+        pass
 
     def set_channel_coupling(self, channel: int, coupling: int) -> None:
-        """Configura el filtro de acoplamiento en la entrada analógica del hardware.
+        """Establece los filtros galvánicos o de referencia a masa del canal de entrada.
+
+        En caso de excepción en la interfaz USB/Ethernet, invoca a :meth:`close`.
 
         Args:
-            channel (int): Identificador de canal (1 o 2).
-            coupling (int): Índice del filtro (0: 'AC', 1: 'DC', 2: 'GND').
+            channel (int): Identificador del canal del osciloscopio (1 o 2).
+            coupling (int): Constante de modo: 0 para 'AC', 1 para 'DC', 2 para 'GND'.
         """
-        ...
+        pass
 
     def get_channel_display(self, channel: int) -> Optional[str]:
-        """Consulta el estado de la renderización del canal en pantalla e interfaz interna.
-
-        Args:
-            channel (int): Identificador de canal (1 o 2).
+        """Determina si la traza de un canal se encuentra renderizándose activa en pantalla.
 
         Returns:
-            Optional[str]: 'ON' u 'OFF'.
+            Optional[str]: Estado de visualización ('OFF' u 'ON'), o ``None`` si se desencadena 
+            el protocolo de :meth:`close` por errores SCPI.
         """
-        ...
+        pass
 
     def set_channel_display(self, channel: int, state: int) -> None:
-        """Habilita o apaga un canal analógico específico del instrumento.
+        """Conmuta la visualización y digitalización en segundo plano de un canal físico.
+
+        Previene el bloqueo del hardware invocando a :meth:`close` ante errores.
 
         Args:
-            channel (int): Identificador de canal (1 o 2).
-            state (int): 0 ('OFF'), 1 ('ON').
+            channel (int): Canal del hardware a modificar (1 o 2).
+            state (int): Estado binario: 0 para apagar ('OFF'), 1 para encender ('ON').
         """
-        ...
+        pass
 
     def get_channel_offset(self, channel: int) -> Optional[float]:
-        """Consulta el desplazamiento vertical de visualización de tensión en un canal.
-
-        Args:
-            channel (int): Identificador de canal (1 o 2).
+        """Obtiene la componente de tensión continua de compensación vertical (offset).
 
         Returns:
-            Optional[float]: Voltaje de offset inyectado electrónicamente.
+            Optional[float]: Tensión continua de desplazamiento inyectada en :math:`\unit{\volt}`, 
+            o ``None`` si el método atrapa una excepción y libera los recursos.
         """
-        ...
+        pass
 
     def set_channel_offset(self, channel: int, offset: float) -> None:
-        """Configura el desplazamiento de inyección de tensión DC de un canal en pantalla.
+        """Ajusta el offset vertical del canal para centrar dinámicamente señales con continua.
+
+        Atrapa excepciones durante el envío de parámetros e invoca :meth:`close`.
 
         Args:
-            channel (int): Identificador de canal (1 o 2).
-            offset (float): Offset vertical en Voltios.
+            channel (int): Identificador del canal (1 o 2).
+            offset (float): Tensión continua de inyección en :math:`\unit{\volt}`.
         """
-        ...
+        pass
 
     def get_channel_attenuation(self, channel: int) -> Optional[float]:
         """Consulta el factor de atenuación preconfigurado (Probe Ratio) de la punta del canal.
 
-        Args:
-            channel (int): Identificador de canal (1 o 2).
-
         Returns:
-            Optional[float]: Ratio geométrico de la punta (ej. 1.0, 10.0).
+            Optional[float]: Relación escalar de atenuación geométrica, o ``None`` tras capturar 
+            una excepción de hardware.
         """
-        ...
+        pass
 
     def set_channel_attenuation(self, channel: int, attenuation: float) -> None:
-        """Configura el multiplicador de escala interno (Probe Ratio) para una punta acoplada.
+        """Configura el multiplicador de escala interno (Probe Ratio) para acoplar lecturas SCPI.
+
+        Fuerza la desconexión segura (:meth:`close`) ante la imposibilidad de operar.
 
         Args:
-            channel (int): Identificador de canal (1 o 2).
-            attenuation (float): Factor numérico de atenuación (ej. 10 para punta x10).
+            channel (int): Número de canal (1 o 2).
+            attenuation (float): Factor numérico nominal (ej. 10.0 para punta x10).
         """
-        ...
+        pass
 
     def get_channel_type(self, channel: int) -> Optional[str]:
-        """Consulta la magnitud física asociada lógicamente al canal.
-
-        Args:
-            channel (int): Identificador de canal (1 o 2).
+        """Consulta la magnitud física asociada lógicamente a la punta de prueba del canal.
 
         Returns:
-            Optional[str]: 'Tensión' o 'Corriente'.
+            Optional[str]: Descripción física de la magnitud ('Tensión' o 'Corriente'), o ``None`` 
+            si se pierde la comunicación manejada.
         """
-        ...
+        pass
 
     def set_channel_type(self, channel: int, ctype: int) -> None:
-        """Configura la unidad y magnitud esperada en la entrada del instrumento.
+        """Configura la unidad dimensional esperada en la entrada para escalar las lecturas.
+
+        Cualquier error capturado abortará la rutina pasando por :meth:`close`.
 
         Args:
-            channel (int): Identificador de canal (1 o 2).
-            ctype (int): 0 para Voltaje ('Tensión'), 1 para Amperaje ('Corriente').
+            channel (int): Número de canal (1 o 2).
+            ctype (int): 0 para Voltaje (:math:`\unit{\volt}`), 1 para Amperaje (:math:`\unit{\ampere}`).
         """
-        ...
+        pass
 
     def set_single_trigger(self) -> None:
-        """Arma el mecanismo de disparo para ejecutar una captura única (Single Sequence)."""
-        ...
+        """Arma el mecanismo de disparo para ejecutar una captura transitoria única ('Single Shot').
+        
+        Atrapa excepciones internamente invocando de forma automatizada a :meth:`close`.
+        """
+        pass
 
     def close(self) -> None:
-        """Termina y libera jerárquicamente la interfaz de conexión VISA y el ResourceManager."""
-        ...
+        """Termina y libera de manera ordenada la interfaz de conexión VISA y el ResourceManager.
+        
+        Este método es invocado explícitamente por el usuario para cerrar el instrumento, 
+        o internamente por el propio controlador como método de seguridad (failsafe) cuando 
+        se atrapan excepciones no controladas.
+        """
+        pass
 
     def __del__(self) -> None:
-        """Destructor de la clase que asegura la liberación de recursos del SO invocando `close()`."""
-        ...
+        """Destructor síncrono que garantiza la liberación de descriptores de hardware del SO invocando :meth:`close`."""
+        pass
 
     @staticmethod
     def process_multipliers(value: Union[str, float], unit: str) -> Optional[float]:
-        """Procesa una cadena numérica combinada con una unidad para obtener una magnitud de ingeniería normalizada.
+        """Procesa y convierte valores numéricos con prefijos del Sistema Internacional (SI) de unidades.
 
-        Aplica factor de escala de manera agnóstica para transformar a unidades del SI estandarizadas
-        (Voltios o Segundos).
+        Aplica factores de escala de manera agnóstica para transformar a unidades base (Voltios o Segundos).
+        Si la unidad introducida no es reconocida, asume automáticamente un multiplicador base de ``1.0``.
 
         Args:
-            value (Union[str, float]): Valor escalar como texto numérico o primitivo flotante.
-            unit (str): Submúltiplo del SI ingresado ('V', 'mV', 'uV', 's', 'ms', 'µs', 'ns').
+            value (Union[str, float]): Magnitud numérica escalar (texto numérico o primitivo flotante).
+            unit (str): Símbolo del submúltiplo físico ('V', 'mV', 'uV', 's', 'ms', 'µs', 'ns').
 
         Returns:
-            Optional[float]: Valor absoluto escalado a unidad fundamental, o None si hay error sintáctico.
+            Optional[float]: Valor absoluto escalado a la unidad fundamental del SI, o 
+            ``None`` si el valor ingresado carece de validez numérica.
         """
-        ...
+        pass

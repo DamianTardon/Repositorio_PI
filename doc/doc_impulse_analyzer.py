@@ -1,67 +1,92 @@
+"""Módulo de análisis matemático numérico para Impulsos Atmosféricos de alta tensión.
+
+Proporciona herramientas matemáticas de procesamiento de señales según los estándares
+IEC 60060-1 e IEC 61083-2, incluyendo la eliminación estadística de offset de ruido de fondo,
+ajustes por mínimos cuadrados no lineales (Levenberg-Marquardt) y filtrado digital de fase cero.
+"""
 from __future__ import annotations
+
+# Importaciones originales del código fuente
 import numpy as np
-from typing import Union, Tuple
+from scipy.optimize import curve_fit
+from scipy import signal
+import warnings
+
+# Importaciones exclusivas para el tipado estático en la documentación
+from typing import Union, Tuple, List, Optional
+
+# --- Metadata del software (IEC 61083-2 Sec. 7) ------------------------------------------------
+#: Nombre oficial de la aplicación según directrices IEC.
+__app_name__: str = "Analizador de Impulsos atmosféricos tipo rayo (1.2/50 us)."
+#: Versión actual del software de metrología.
+__version__: str = "1.0.0"
+#: Fecha oficial de lanzamiento.
+__release_date__: str = "2026-03-24"
+#: Algoritmos soportados para la extracción paramétrica normada.
+__algorithms_supported__: List[str] = ["Full Lightning Impulse (LI)", "Chopped Lightning Impulse (LIC)"]
+#: Parámetros que el modelo matemático valida rigurosamente.
+__parameters_validated__: List[str] = ["Valor Pico (Ut)", "Tiempo de Frente (T1)", "Tiempo de Cola (T2)", "Sobrepasamiento (OS)"]
+# -----------------------------------------------------------------------------------------------
 
 class LightningImpulseAnalyzer:
-    """Analizador de señales de impulsos atmosféricos tipo rayo ($\SI{1.2/50}{\micro\second}$).
+    """Analizador de señales de impulsos atmosféricos tipo rayo (:math:`\qty{1.2/50}{\micro\second}`).
 
-    Proporciona el modelo matemático para el análisis y procesamiento de señales de impulsos de alta tensión 
-    (Full Lightning Impulse y Chopped Lightning Impulse), en estricta conformidad con los estándares IEC 60060-1 e IEC 61083-2.
-    Diseñado para integrarse bajo arquitectura MVP.
+    Proporciona el modelo matemático para el análisis y procesamiento de señales de impulsos 
+    de alta tensión (LI y LIC), en estricta conformidad con los estándares normativos.
 
     Attributes:
-        sampling_period (float): Periodo de muestreo del instrumento en segundos.
-        sigma_fit (float): Parámetro de peso para la convergencia en el ajuste de curva.
-        raw_voltage (np.ndarray): Array crudo de tensión registrado.
-        time_axis (np.ndarray): Vector de tiempo base del impulso.
-        impulse_type (str): Clasificación de la onda ('full' o 'chopped').
-        results (dict): Contenedor de los parámetros validados (Ut, T1, T2, OS).
+        sampling_period (float): Periodo de muestreo temporal :math:`dt` en :math:`\unit{\second}`.
+        sigma_fit (float): Parámetro de tolerancia y peso de residuos en la aproximación matemática del frente.
+        raw_voltage (np.ndarray): Vector numérico original de tensión con offset.
+        time_axis (np.ndarray): Eje base de tiempo absoluto determinado por los índices de muestreo.
+        impulse_type (str): Clasificación dinámica de la onda ('full' o 'chopped').
+        results (dict): Diccionario que contiene las variables finales analizadas (:math:`U_t`, :math:`T_1`, :math:`T_2`, :math:`OS`).
     """
 
     def __init__(self, voltage_data: Union[list, np.ndarray], sampling_period: float, sigma_fit: float) -> None:
         """Inicializa el estado del analizador, genera el vector de tiempo y valida parámetros críticos.
 
         Args:
-            voltage_data (Union[list, np.ndarray]): Datos crudos de tensión registrados por el hardware de adquisición.
-            sampling_period (float): Periodo de muestreo del instrumento en segundos.
-            sigma_fit (float): Modificador de la desviación estándar (sigma) empleado en el ajuste de curva.
-                Es un factor de peso esencial para la convergencia matemática en el análisis iterativo de ondas.
-                Si el valor es <= 0, se forzará al valor por defecto de 0.1.
+            voltage_data (Union[list, np.ndarray]): Datos crudos de tensión registrados por el hardware.
+            sampling_period (float): Periodo de muestreo del instrumento en :math:`\unit{\second}`.
+            sigma_fit (float): Factor de ponderación residual empleado en el ajuste de curva.
+                Si el valor ingresado es :math:`\leq 0`, el sistema emite un warning y adopta automáticamente 
+                un valor por defecto de ``0.1`` para garantizar la convergencia matemática.
 
         Raises:
-            ValueError: Si `sampling_period` es <= 0.
+            ValueError: Si el periodo de muestreo ``sampling_period`` es :math:`\leq 0`.
         """
-        ...
+        pass
 
     def _remove_offset(self) -> None:
-        """Calcula y elimina el offset de tensión presente en el ruido de fondo (pre-trigger).
+        """Calcula estadísticamente y remueve el offset de tensión presente en el ruido de pre-trigger.
 
-        Busca la porción plana inicial de la curva antes del inicio del impulso analizando la 
-        desviación estándar. Establece el valor base promedio y lo resta a toda la señal.
+        Busca una porción plana inicial mediante el análisis de desviaciones estándar (``5 * std``). 
         
-        Raises:
-            ValueError: Si no existen suficientes muestras previas al disparo (trigger) para aislar el ruido de fondo.
+        .. note::
+            Implementa una contingencia anti-ruido (fallback): si la señal presenta un ruido excesivo 
+            que imposibilita hallar una meseta pre-trigger válida, el algoritmo no falla. En su lugar, 
+            asume por defecto el valor de la primera muestra de la captura como nivel base del offset.
         """
-        ...
+        pass
 
     def _polarity_normalization(self) -> None:
-        """Normaliza la polaridad de la curva compensada en offset.
+        """Determina la polaridad de la señal y la normaliza al semiplano positivo.
 
-        Encuentra el valor extremo $U_e$ absoluto y determina el factor de polaridad (1.0 o -1.0).
-        Transforma la curva para que el procesamiento subsiguiente opere siempre en el semiplano positivo.
+        Halla el valor extremo :math:`U_e` y asigna un factor de multiplicación (``1.0`` o ``-1.0``).
 
         Raises:
-            ValueError: Si se invoca antes de remover el offset de la señal.
+            ValueError: Si no se ha ejecutado :meth:`_remove_offset` previamente.
         """
-        ...
+        pass
 
     def _normalize_waveform(self) -> None:
-        """Escala la onda de tensión absoluta a un valor pico per unit (p.u.) de 1.0.
+        """Escala la onda de tensión absoluta a un valor pico en por unidad (p.u.) de 1.0.
 
         Raises:
-            ValueError: Si se invoca antes de normalizar la polaridad.
+            ValueError: Si la onda no tiene la polaridad compensada.
         """
-        ...
+        pass
 
     @staticmethod
     def _find_limit_index(v_array: np.ndarray, threshold: float, mode: str) -> int:
@@ -70,216 +95,218 @@ class LightningImpulseAnalyzer:
         Args:
             v_array (np.ndarray): Segmento de datos de tensión (frente o cola).
             threshold (float): Valor de tensión límite a localizar.
-            mode (str): Dirección de búsqueda ('front' o 'tail').
+            mode (str): Dirección de búsqueda ('front' para iteración invertida, 'tail' para directa).
 
         Returns:
             int: Índice local correspondiente al cruce del umbral.
 
         Raises:
-            ValueError: Si los datos no cruzan el umbral especificado en la dirección dada.
+            ValueError: Si los datos no cruzan el umbral especificado.
         """
-        ...
+        pass
 
     def _cutting_signal(self) -> None:
-        """Segmenta los datos relevantes para ejecutar el ajuste de la curva base.
+        """Segmenta los datos relevantes aislando el intervalo normativo para el ajuste de curva.
 
-        Aísla la región de la onda delimitada entre el 20% del valor extremo en el frente
-        y el 40% del valor extremo en la cola, conforme a IEC 61083-2.
+        Extrae la región comprendida entre el 20% del valor extremo en el frente y el 40% en la cola.
 
         Raises:
-            RuntimeError: Si la onda actual está clasificada como impulso cortado ('chopped').
-            ValueError: Si no es posible hallar los umbrales requeridos por ruido o escala inadecuada.
+            RuntimeError: Si la señal corresponde a un impulso cortado ('chopped').
+            ValueError: Si no se encuentran los umbrales requeridos por ruidos o recortes de captura.
         """
-        ...
+        pass
 
     @staticmethod
     def _double_exponential_func(t: np.ndarray, U: float, tau1: float, tau2: float, td: float) -> np.ndarray:
-        """Evalúa la función matemática analítica de doble exponencial.
+        """Evalúa la función analítica de doble exponencial para el impulso rayo.
 
-        Formula:
-            $$V(t) = U \cdot (\exp(-\frac{t - t_d}{\tau_1}) - \exp(-\frac{t - t_d}{\tau_2}))$$
+        .. math::
+            V(t) = U \cdot \left( \exp\left(-\frac{t - t_d}{\\tau_1}\right) - \exp\left(-\frac{t - t_d}{\\tau_2}\right) \right)
+
+        .. note::
+            Incluye una máscara de seguridad lógica (:math:`dt \geq 0`) que restringe la evaluación 
+            matemática exclusivamente a tiempos positivos. Los valores fuera de este dominio se 
+            rellenan con ceros (``0.0``) para prevenir que la función exponencial diverja y cause 
+            un desbordamiento numérico (Overflow).
 
         Args:
             t (np.ndarray): Vector de tiempo.
             U (float): Factor de amplitud.
-            tau1 (float): Constante de tiempo de la cola $\tau_1$.
-            tau2 (float): Constante de tiempo del frente $\tau_2$.
-            td (float): Retraso temporal (time delay) $t_d$.
+            tau1 (float): Constante de tiempo de la cola :math:`\\tau_1`.
+            tau2 (float): Constante de tiempo del frente :math:`\\tau_2`.
+            td (float): Retraso temporal (origen virtual algorítmico) :math:`t_d`.
 
         Returns:
-            np.ndarray: Vector de tensión evaluado. Retorna 0.0 para tiempos < $t_d$.
+            np.ndarray: Vector de tensión evaluado de forma segura.
         """
-        ...
+        pass
 
     def _fit_base_curve(self) -> None:
         """Calcula los parámetros óptimos de la doble exponencial utilizando Levenberg-Marquardt.
 
-        Aplica `scipy.optimize.curve_fit` sobre los datos segmentados. Utiliza `sigma_fit` para dar 
-        mayor peso estadístico a las muestras del frente y el pico, minimizando el error de encaje.
+        .. note::
+            La matriz de ponderación ``sigma`` no se distribuye uniformemente. El factor ``sigma_fit`` 
+            se aplica exclusivamente a las muestras del frente de onda y hasta 5 muestras posteriores 
+            al pico. El resto de la cola mantiene un peso unitario (``1.0``). Esto fuerza al optimizador 
+            a priorizar un encaje perfecto en el frente (crítico para :math:`T_1`) tolerando 
+            ligeras desviaciones en la cola.
 
         Raises:
             RuntimeError: Si el impulso está clasificado como cortado ('chopped').
-            ValueError: Si los datos no han sido segmentados o el algoritmo no converge (falla de ajuste).
+            ValueError: Si los datos no han sido segmentados o el optimizador diverge.
         """
-        ...
+        pass
 
     def _construct_base_curve(self) -> None:
-        """Sintetiza la curva base matemática $U_m(t)$ sobre el vector de tiempo completo.
-
-        Evalúa los parámetros obtenidos del ajuste y halla el máximo analítico de la curva base ($U_b$).
+        """Sintetiza la curva base matemática :math:`U_m(t)` sobre el vector de tiempo completo.
 
         Raises:
             RuntimeError: Si aplica a impulsos cortados.
-            ValueError: Si los parámetros de ajuste (`fitted_params`) aún no fueron calculados.
+            ValueError: Si los parámetros de ajuste no han sido generados.
         """
-        ...
+        pass
 
     def _calculate_residual_curve(self) -> None:
-        """Extrae la curva residual (ruido u oscilaciones de alta frecuencia).
+        """Extrae la curva residual restando la base matemática ideal a la onda original.
 
-        Fórmula:
-            $$R(t) = U_0(t) - U_m(t)$$
+        .. math::
+            R(t) = U_0(t) - U_m(t)
 
         Raises:
             ValueError: Si faltan calcular las curvas base o normalizadas.
         """
-        ...
+        pass
 
     def _create_digital_filter(self) -> Tuple[np.ndarray, np.ndarray]:
-        """Diseña el filtro digital IIR especificado por la IEC 60060-1.
+        """Diseña el filtro digital IIR especificado por la normativa IEC 60060-1.
 
-        Calcula la constante intermedia $c$ basada en el periodo de muestreo $\Delta t$ 
-        y la constante normativa $d = 2.2 \times 10^{-12}$:
-            $$c = \tan \left( \frac{\pi \cdot \Delta t}{\sqrt{d}} \right)$$
+        .. math::
+            c = \\tan \\left( \\frac{\\pi \cdot dt}{\\sqrt{d}} \\right)
+
+        Donde la constante normativa es :math:`d = 2.2 \\times 10^{-12}`.
 
         Returns:
-            Tuple[np.ndarray, np.ndarray]: Coeficientes del filtro (b, a) listos para la función filtfilt.
+            Tuple[np.ndarray, np.ndarray]: Coeficientes del filtro ``(b, a)``.
         """
-        ...
+        pass
 
     def _filter_to_residual(self) -> None:
-        """Aplica el filtro digital de fase cero a la curva residual.
-
-        Genera la curva residual filtrada $R_f(t)$, eliminando componentes de frecuencia superiores 
-        al límite normalizado.
+        """Aplica el filtro digital de fase cero a la curva residual para obtener :math:`R_f(t)`.
 
         Raises:
             ValueError: Si no existe la curva residual original.
         """
-        ...
+        pass
 
     def _construct_test_voltage_curve(self) -> None:
-        """Construye la curva de tensión de ensayo final $U_t(t)$.
+        """Construye la curva de tensión de ensayo final :math:`U_t(t)` acoplando la base y el residuo filtrado.
 
-        Fórmula:
-            $$U_t(t) = U_m(t) + R_f(t)$$
-
-        Almacena el valor pico final ajustado ($U_t$) y restaura la polaridad original a los vectores.
+        .. math::
+            U_t(t) = U_m(t) + R_f(t)
 
         Raises:
             ValueError: Si falta procesar la curva base o la residual filtrada.
         """
-        ...
+        pass
 
     @staticmethod
     def _linear_interpolation(t_array: np.ndarray, v_array: np.ndarray, idx_low: int, target_voltage: float) -> float:
-        """Realiza una interpolación lineal para hallar el cruce de tiempo exacto entre muestras.
+        """Realiza una interpolación lineal sub-muestral para hallar un cruce de tiempo continuo exacto.
 
         Args:
             t_array (np.ndarray): Vector de tiempo local.
             v_array (np.ndarray): Vector de tensión local.
-            idx_low (int): Índice de la muestra inferior más cercana.
-            target_voltage (float): Tensión objetivo a buscar.
+            idx_low (int): Índice discreto de la muestra inferior más cercana.
+            target_voltage (float): Tensión fraccionaria objetivo.
 
         Returns:
-            float: Tiempo interpolado exacto donde la señal alcanza `target_voltage`.
+            float: Tiempo interpolado exacto en :math:`\unit{\second}`.
         """
-        ...
+        pass
 
     def _calc_front_parameters(self, Ut: float) -> Tuple[float, float]:
-        """Calcula el Origen Virtual ($O_1$) y el Tiempo de Frente ($T_1$).
+        """Calcula el Origen Virtual (:math:`O_1`) y el Tiempo de Frente (:math:`T_1`).
 
-        Interpola los instantes correspondientes al 30% y 90% del valor de ensayo.
-        Fórmula IEC:
-            $$T_1 = \frac{T_{90} - T_{30}}{0.6}$$
+        .. math::
+            T_1 = \\frac{T_{90} - T_{30}}{0.6}
 
         Args:
             Ut (float): Valor pico de la tensión de ensayo absoluta.
 
         Returns:
-            Tuple[float, float]: Tupla conteniendo (Origen Virtual $O_1$, Tiempo de Frente $T_1$).
+            Tuple[float, float]: Tupla conteniendo (Origen Virtual :math:`O_1`, Tiempo de Frente :math:`T_1`).
         """
-        ...
+        pass
 
     def _calc_tail_parameter(self, Ut: float, O1: float) -> float:
-        """Calcula el Tiempo de Cola ($T_2$).
-
-        Interpola el cruce de la cola por el 50% de $U_t$ referenciado al Origen Virtual $O_1$.
+        """Calcula el Tiempo de Cola (:math:`T_2`) midiendo el cruce al 50% de decaimiento.
 
         Args:
             Ut (float): Valor pico absoluto de ensayo.
             O1 (float): Origen Virtual computado en el frente.
 
         Returns:
-            float: Parámetro temporal de cola $T_2$.
+            float: Parámetro temporal de cola :math:`T_2`.
         """
-        ...
+        pass
 
     def _calculate_parameters(self) -> None:
-        """Orquesta el cómputo final de todos los parámetros validados (T1, T2, Ut, OS).
+        """Orquesta el cómputo de los parámetros normativos y el Sobrepasamiento (Overshoot).
 
-        Asigna los valores al diccionario de resultados (`results`).
+        .. math::
+            OS = 100 \cdot \\frac{U_{peak} - U_b}{U_{peak}}
+
+        Asigna los valores finales validados al contenedor ``self.results``.
 
         Raises:
-            ValueError: Si no se ha construido la curva de tensión de prueba o los niveles de interpolación fallan.
+            ValueError: Si la onda no decae lo suficiente o presenta ruido que impida la interpolación.
         """
-        ...
+        pass
 
     def _find_time_lag(self, ref_analyzer: LightningImpulseAnalyzer) -> None:
-        """Calcula el desfase temporal $t_L$ entre el impulso cortado y el pleno de referencia.
-
-        Promedia la diferencia de tiempo en los niveles del 30%, 50% y 80% en el frente de ambas ondas.
+        """Calcula el desfase sub-muestral :math:`t_L` entre el impulso cortado y la referencia plena.
 
         Args:
             ref_analyzer (LightningImpulseAnalyzer): Instancia analizada de la onda plena de referencia.
         """
-        ...
+        pass
 
     def _adjust_time_lag(self) -> None:
-        """Sincroniza el eje de tiempo del impulso actual sumando el desfase $t_L$.
+        """Sincroniza el eje de tiempo del impulso actual sumando el desfase calculado :math:`t_L`.
 
         Raises:
-            ValueError: Si el retraso $t_L$ no ha sido calculado.
+            ValueError: Si el retraso :math:`t_L` no ha sido calculado.
         """
-        ...
+        pass
 
     def _find_deviation_point(self, ref_analyzer: LightningImpulseAnalyzer, threshold: float = 0.02) -> None:
-        """Detecta el instante exacto donde la onda bajo ensayo comienza a colapsar (desviación).
+        """Clasificador dinámico que detecta la existencia de un colapso dieléctrico.
 
-        Compara punto a punto la cola de la onda cortada contra la de referencia. Si la diferencia 
-        supera el `threshold`, clasifica el tipo de impulso internamente como 'chopped'.
+        Evalúa la discrepancia absoluta entre la cola de la onda bajo ensayo y la referencia. 
+        Si la diferencia supera el umbral estipulado (``threshold``), clasifica la onda como 
+        cortada (``impulse_type = "chopped"``) y registra el índice de desviación.
+        Si nunca supera el umbral, la clasifica como plena (``impulse_type = "full"``) 
+        y aborta la búsqueda del corte.
 
         Args:
-            ref_analyzer (LightningImpulseAnalyzer): Instancia analizada de la referencia.
-            threshold (float): Tolerancia p.u. máxima de separación antes de considerar corte.
+            ref_analyzer (LightningImpulseAnalyzer): Instancia de la referencia.
+            threshold (float): Tolerancia p.u. máxima permitida antes de considerar un colapso.
 
         Raises:
-            ValueError: Si las ondas no están normalizadas o alineadas en el tiempo.
+            ValueError: Si las ondas no están normalizadas o el eje de tiempo no está alineado.
         """
-        ...
+        pass
 
     def _select_data_up_to_deviation(self) -> None:
-        """Recorta los vectores de datos reteniendo únicamente la región intacta previa al corte.
+        """Enmascara los vectores de datos reteniendo únicamente la región intacta previa al corte.
 
         Raises:
             ValueError: Si el punto de desviación aún no ha sido hallado.
         """
-        ...
+        pass
 
     def _find_amplitude_ratio(self, ref_analyzer: LightningImpulseAnalyzer) -> None:
-        """Calcula la relación de amplitud $E$ entre la onda cortada y su referencia plena.
-
-        Compara promedios de tensión absoluta dentro del intervalo de escalada (30% al 80% del frente).
+        """Calcula la relación escalar de amplitudes :math:`E` entre la onda cortada y la referencia.
 
         Args:
             ref_analyzer (LightningImpulseAnalyzer): Instancia de referencia (onda plena).
@@ -287,47 +314,45 @@ class LightningImpulseAnalyzer:
         Raises:
             ValueError: Si el eje de tiempo no está alineado.
         """
-        ...
+        pass
 
     def _scale_base_curve(self, ref_analyzer: LightningImpulseAnalyzer) -> None:
-        """Genera la curva base teórica de la onda cortada usando los parámetros de la referencia.
-
-        Escala el factor de amplitud $U$ del impulso de referencia mediante el ratio $E$ hallado.
+        """Sintetiza la base ideal del impulso cortado escalando verticalmente la curva de la referencia.
 
         Args:
             ref_analyzer (LightningImpulseAnalyzer): Instancia de referencia de la onda plena.
         """
-        ...
+        pass
 
     def _find_chopping_instant(self) -> None:
-        """Computa algorítmicamente el instante de corte (Chopping Instant).
+        """Computa algorítmicamente el instante de corte exacto (Chopping Instant).
 
-        Detecta el colapso abrupto derivando el gradiente y proyecta una regresión lineal
-        entre los puntos del 70% y el 10% del flanco de caída.
+        Primero, evalúa la primera y segunda derivada discreta (mediante análisis de gradiente) 
+        para localizar matemáticamente la "rodilla" de caída o tensión de colapso (:math:`U_{collapse}`).
+        Una vez establecido el colapso, halla los instantes correspondientes al 70% y 10% de dicha tensión 
+        en la porción de caída libre y proyecta una regresión lineal entre estos dos puntos para 
+        determinar el cruce temporal teórico de corte (:math:`T_{cutting\_moment}`).
 
         Raises:
-            ValueError: Si falla la detección algorítmica de los límites en la caída de voltaje.
+            ValueError: Si falla la detección algorítmica de los límites en la caída de voltaje 
+                por ausencia de muestras o puntos solapados en el tiempo.
         """
-        ...
+        pass
 
     def ref_lightning_impulse(self) -> None:
-        """Ejecuta el pipeline completo de análisis para un Impulso Pleno tipo Rayo (LI) a tensión reducida.
-
-        Este método orquesta linealmente la remoción de offset, segmentación de datos, 
-        ajuste matemático, filtrado digital de la IEC 60060-1 y cálculo de parámetros $T_1$, $T_2$ y OS.
-        """
-        ...
+        """Pipeline integrador para ejecutar el análisis de un Impulso Pleno (LI) de referencia."""
+        pass
 
     def lightning_impulse(self, ref_analyzer: LightningImpulseAnalyzer) -> None:
-        """Ejecuta el pipeline de análisis comparativo para un Impulso Cortado tipo Rayo (LIC).
+        """Pipeline integrador que procesa analíticamente impulsos cortados (LIC) y plenos.
 
-        Realiza sincronización temporal, cálculo de ratio de amplitud y estimación de parámetros
+        Ejecuta la alineación temporal, clasificación dinámica y escalado de base comparándose 
         frente a un impulso pleno de referencia grabado a nivel de tensión inferior.
 
         Args:
-            ref_analyzer (LightningImpulseAnalyzer): Instancia previamente procesada del impulso pleno a tensión reducida.
+            ref_analyzer (LightningImpulseAnalyzer): Instancia previamente procesada de la referencia.
 
         Raises:
-            ValueError: Si `ref_analyzer` es nulo o inválido.
+            ValueError: Si `ref_analyzer` no se ha suministrado.
         """
-        ...
+        pass

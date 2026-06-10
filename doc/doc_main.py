@@ -1,33 +1,49 @@
-"""Punto de entrada principal para el software de metrología de impulsos de alta tensión.
+"""Punto de entrada principal para el software de metrología de impulsos atmosféricos de alta tensión.
 
-Orquesta la inicialización del sistema bajo el patrón de diseño Arquitectónico 
-Modelo-Vista-Presentador (MVP). Instancia los módulos de hardware (comunicación VISA), 
-almacenamiento (HDF5), el motor de cálculo matemático y la interfaz gráfica de usuario (GUI), 
-inyectándolos como dependencias directas al presentador principal antes de ceder el 
-control al bucle de eventos de Qt.
+Orquesta la inicialización del sistema bajo el patrón de diseño arquitectónico 
+Modelo-Vista-Presentador (MVP). Está diseñado para el análisis de ondas de impulso 
+atmosféricos normalizados de :math:`\qty{1.2/50}{\micro\second}`.
+
+Instancia los módulos físicos e inyecta las dependencias al presentador principal antes 
+de ceder el control al bucle de eventos de Qt. Los componentes orquestados incluyen:
+    * Hardware de adquisición (comunicación VISA).
+    * Almacenamiento local (HDF5).
+    * Motor de cálculo matemático y validación de impulsos.
+    * Interfaz gráfica de usuario (GUI).
 """
 from __future__ import annotations
 import sys
 from PySide6.QtWidgets import QApplication, QMainWindow
-from typing import Any
+from ui_graphic_user_interface import Ui_MainWindow
 
-class MainWindow(QMainWindow):
-        """Vista principal de la aplicación construida con PySide6.
+# Liberías de este proyecto.
+from file_manager import FileManager
+from impulse_analyzer import LightningImpulseAnalyzer
+from gw_instek_gds1000a_u import GWInstekGDS1000AU
+from presenter import MainPresenter
+
+
+class MainWindow(QMainWindow, Ui_MainWindow):
+    """Vista principal de la aplicación construida con PySide6.
 
     Hereda de :class:`PySide6.QtWidgets.QMainWindow` y de la clase generada 
-    automáticamente `Ui_MainWindow`. Actúa como la Vista en el patrón MVP.
+    automáticamente :class:`ui_graphic_user_interface.Ui_MainWindow` (compilada desde 
+    un archivo ``.ui`` de Qt Designer). Actúa como la Vista en el patrón MVP.
+    
     Su responsabilidad es estrictamente pasiva: se limita a la inicialización del árbol de 
-    widgets y la renderización en pantalla.
+    widgets y la renderización en pantalla de los datos metrológicos.
 
     Note:
-        Delega toda la lógica de negocio, manejo de eventos y actualización 
-        de estados al presentador (:class:`MainPresenter`).
+        Delega toda la lógica de negocio, manejo de eventos de hardware y actualización 
+        de estados al presentador principal (:class:`presenter.MainPresenter`).
     """
 
     def __init__(self) -> None:
-        """Inicializa el ciclo de vida de la ventana principal y construye los elementos de la interfaz.
+        """Inicializa el ciclo de vida de la ventana principal y construye la interfaz.
 
-        Ejecuta internamente el método `setupUi(self)` para procesar e instanciar los componentes 
-        gráficos (botones, gráficos, etiquetas) definidos en la plantilla estática.
+        Ejecuta internamente el método ``setupUi(self)`` heredado para procesar e instanciar 
+        los componentes gráficos (botones, lienzos de gráficas, etiquetas) definidos en la 
+        plantilla estática. Esta inicialización ocurre de forma síncrona en el hilo 
+        principal de la aplicación.
         """
-        ...
+        pass

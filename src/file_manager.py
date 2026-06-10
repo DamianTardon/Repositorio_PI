@@ -94,7 +94,7 @@ class FileManager:
                 print(f"Advertencia: Se esperaban {data_size} bytes pero se leyeron {len(raw_bytes)}")
 
             raw_data = np.frombuffer(raw_bytes, dtype='>i2')
-            waveform = raw_data / 25.0
+            waveform = raw_data / ADC_STEPS_PER_DIV
 
         return waveform, dt
 

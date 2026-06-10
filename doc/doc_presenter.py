@@ -1,19 +1,46 @@
+"""Módulo de acoplamiento lógico y presentación MVP (Modelo-Vista-Presentador).
+
+Gobierna las interacciones síncronas/asíncronas generadas desde los elementos visuales de 
+la GUI de PySide6, el envío dinámico de comandos de control al osciloscopio y las subrutinas de cómputo.
+"""
 from __future__ import annotations
+
+# Importaciones originales del código fuente
+import os
+import time
+import re
 import numpy as np
-from typing import Union, Dict, Any, Optional, Tuple
-from PySide6.QtCore import QObject, QThread, Signal, Slot
+from PySide6.QtCore import Qt, QObject, QThread, Signal, Slot, QRegularExpression, QTimer
+from PySide6.QtWidgets import QMessageBox, QFileDialog, QMenu, QLineEdit
+from PySide6.QtGui import QRegularExpressionValidator, QIntValidator, QAction
+import pyqtgraph as pg
+from datetime import datetime
+
+# Importaciones exclusivas para el tipado estático
+from typing import Union, Dict, Any, Optional, Tuple, Type, TYPE_CHECKING
+
+# Importaciones diferidas: Solo se evalúan durante el análisis estático (Sphinx/Linters)
+if TYPE_CHECKING:
+    from ui_graphic_user_interface import Ui_MainWindow
+    from gw_instek_gds1000a_u import GWInstekGDS1000AU
+    from file_manager import FileManager
+    from impulse_analyzer import LightningImpulseAnalyzer
+
+
+#: Bandera global de habilitación de depuración de componentes lógicos de captura.
+DEBUG_MODE: bool = os.environ.get("DEBUG_MODE", "False") == "True"
 
 class MockChannel2Analyzer:
     """Contenedor de datos pasivo para la señal del canal 2 (corriente).
 
     Almacena la onda escalada por sus atenuadores para tareas de visualización y persistencia.
-    Omite deliberadamente el cálculo de parámetros normativos ($T_1$, $T_2$, etc.) 
+    Omite deliberadamente el cálculo de parámetros normativos (:math:`T_1`, :math:`T_2`, etc.) 
     al no ser aplicables a esta magnitud física en el contexto del analizador principal.
 
     Attributes:
         raw_voltage (np.ndarray): Array crudo de corriente registrado.
         time_axis (np.ndarray): Vector de tiempo base del impulso.
-        aligned_time_axis (Optional[np.ndarray]): Vector de tiempo alineado (None por defecto, mantenido por compatibilidad de interfaz).
+        aligned_time_axis (Optional[np.ndarray]): Vector de tiempo alineado para sincronización en gráficos.
         test_voltage_curve (np.ndarray): Curva de corriente real escalada por atenuadores.
         test_voltage_curve_norm (np.ndarray): Curva de corriente normalizada a 1.0 p.u.
     """
@@ -21,11 +48,17 @@ class MockChannel2Analyzer:
     def __init__(self, waveform: Union[list, np.ndarray], dt: float) -> None:
         """Inicializa el contenedor y normaliza la onda para su graficación.
 
+        .. note::
+            Implementa una medida de seguridad (fail-safe) durante la normalización: verifica 
+            que el valor máximo absoluto de la curva sea distinto de cero (``max_val != 0``). 
+            Esto previene una excepción crítica por división por cero si el hardware captura 
+            una señal completamente nula (plana).
+
         Args:
             waveform (Union[list, np.ndarray]): Datos crudos del canal 2.
-            dt (float): Periodo de muestreo del instrumento en segundos.
+            dt (float): Periodo de muestreo del instrumento en :math:`\unit{\second}`.
         """
-        ...
+        pass
 
 class WaitWaveformThread(QThread):
     """Hilo trabajador (Worker Thread) para el monitoreo de adquisición de hardware.
@@ -36,270 +69,228 @@ class WaitWaveformThread(QThread):
     Attributes:
         wave_detected (Signal): Señal emitida cuando el estado del instrumento es 'Disparado'.
         error_occurred (Signal): Señal emitida con la traza del error en caso de fallo de hardware.
-        oscilloscope (Any): Instancia del controlador del instrumento.
-        _is_running (bool): Bandera de control de ejecución del bucle.
+        oscilloscope (GWInstekGDS1000AU): Instancia del controlador del instrumento.
     """
     
     wave_detected = Signal()
     error_occurred = Signal(str)
 
-    def __init__(self, oscilloscope: Any) -> None:
-        """Inicializa el hilo con la referencia al osciloscopio.
-
-        Args:
-            oscilloscope (Any): Controlador del osciloscopio (comunicación SCPI/VISA).
-        """
-        ...
+    def __init__(self, oscilloscope: GWInstekGDS1000AU) -> None:
+        """Inicializa el hilo con la referencia al osciloscopio."""
+        pass
 
     def run(self) -> None:
         """Ejecuta el bucle de sondeo (polling) del estado del trigger.
 
-        Arma el disparo único en el hardware y consulta el estado en intervalos de 200 ms.
-        Emite `wave_detected` al confirmar captura o `error_occurred` ante excepciones.
+        Arma el disparo único en el hardware y consulta repetitivamente el estado de captura.
+
+        .. note::
+            El bucle de sondeo incorpora una pausa de 200 milisegundos (``time.sleep(0.2)``) 
+            por cada iteración. Esto es vital para evitar que el hilo consuma recursos innecesarios 
+            del procesador (CPU) mientras espera el evento físico en el instrumento.
         """
-        ...
+        pass
 
     def stop(self) -> None:
         """Interrumpe el bucle de sondeo y finaliza la ejecución del hilo de forma segura."""
-        ...
+        pass
 
 class MainPresenter(QObject):
     """Presentador principal del patrón Modelo-Vista-Presentador (MVP).
 
-    Orquesta la interacción entre la interfaz gráfica (Vista), el hardware de adquisición 
-    (:class:`GWInstekGDS1000AU`), y el almacenamiento (:class:`FileManager`).
+    Orquesta la interacción entre la interfaz gráfica (Vista), el hardware de adquisición, 
+    y el motor matemático/almacenamiento (Modelo). Maneja la lógica de presentación, 
+    estados de ensayos y renderizado de gráficos a través de pyqtgraph.
 
     Attributes:
         ui (Ui_MainWindow): Interfaz de usuario generada e instanciada.
-        osc (GWInstekGDS1000AU): Controlador del hardware SCPI/VISA (osciloscopio).
+        osc (GWInstekGDS1000AU): Controlador del hardware (osciloscopio).
         fm (FileManager): Gestor de archivos y base de datos HDF5.
-        AnalyzerClass (type): Referencia inyectada a la clase analizadora matemática.
-        ref_analyzer (Optional[Any]): Instancia de analizador para el impulso pleno de referencia.
-        pending_analyzers (Dict[int, Dict[str, Any]]): Buffer de analizadores recién adquiridos sin guardar, mapeado por canal.
+        AnalyzerClass (Type[LightningImpulseAnalyzer]): Referencia inyectada a la clase analizadora matemática.
+        ref_analyzer (Optional[LightningImpulseAnalyzer]): Instancia de analizador para el impulso pleno de referencia.
+        pending_analyzers (Dict[int, Dict[str, Any]]): Buffer de analizadores recién adquiridos sin guardar.
         last_acquired_data (Dict[int, Tuple]): Buffer de tuplas de datos puros recién adquiridos por canal.
         wave_count (int): Contador incremental de impulsos de ensayo procesados.
         ref_count (int): Contador incremental de impulsos de referencia procesados.
         project_created (bool): Bandera de estado que habilita el almacenamiento de resultados.
-        wait_thread (Optional[WaitWaveformThread]): Referencia al hilo de adquisición asíncrona en curso.
-        voltage_values (Dict[str, list]): Diccionario de escalas verticales válidas predefinidas.
-        time_values (Dict[str, list]): Diccionario de escalas de tiempo válidas predefinidas.
+        wait_thread (Optional[WaitWaveformThread]): Referencia al hilo de adquisición asíncrona.
         saved_waves_data (Dict[str, Any]): Buffer en RAM de las ondas cargadas/guardadas para renderizado.
-        color_index (int): Índice rotativo para la asignación de colores en el ploteo de múltiples curvas.
         visibility_menu (QMenu): Menú contextual para el control de visibilidad de trazas.
-        legend (pg.LegendItem): Leyenda principal del lienzo de ploteo.
+        legend (pg.LegendItem): Leyenda principal del lienzo de ploteo de PyQtGraph.
         view_box_ch2 (pg.ViewBox): Caja de vista superpuesta para escalar independientemente el CH2.
         right_axis (pg.AxisItem): Eje Y secundario anclado a la derecha para magnitud de corriente.
     """
-# Verificar los Any.
-# AnalyzerClass (type): Referencia inyectada a la clase analizadora matemática.
-# ref_analyzer (Optional[Any]): Instancia de analizador para el impulso pleno de referencia.
-# pending_analyzers (Dict[int, Dict[str, Any]]): Buffer de analizadores recién adquiridos sin guardar, mapeado por canal.
-# saved_waves_data (Dict[str, Any]): Buffer en RAM de las ondas cargadas/guardadas para renderizado.
 
-    def __init__(self, ui: Any, oscilloscope: Any, file_manager: Any, analyzer_class: type) -> None:
-        """Inyecta las dependencias del sistema e inicializa el estado del presentador.
-
-        Args:
-            ui (Any): Interfaz de usuario instanciada.
-            oscilloscope (Any): Gestor de conexión SCPI/VISA del hardware.
-            file_manager (Any): Gestor de persistencia de datos (I/O y HDF5).
-            analyzer_class (type): Clase a instanciar para el procesamiento de formas de onda.
-        """
-        ...
+    def __init__(self, 
+                 ui: Ui_MainWindow, 
+                 oscilloscope: GWInstekGDS1000AU, 
+                 file_manager: FileManager, 
+                 analyzer_class: Type[LightningImpulseAnalyzer]) -> None:
+        """Inyecta las dependencias del sistema e inicializa el estado dinámico del presentador."""
+        pass
 
     def _setup_ui(self) -> None:
-        """Configura validadores Regex, escalas, unidades, menús dinámicos y la arquitectura dual del gráfico pyqtgraph."""
-        ...
+        """Configura escalas, unidades, menús dinámicos y la arquitectura dual del gráfico pyqtgraph.
+
+        .. note::
+            Instancia validadores de expresiones regulares (``QRegularExpressionValidator``) que 
+            operan en tiempo real sobre los campos de texto, garantizando la integridad de datos:
+            - **Solo positivos**: Para las condiciones ambientales y atenuaciones (ej. Humedad, Temperatura).
+            - **Positivos y Negativos**: Para los parámetros configurables del hardware (Offset, Delay y Nivel de Trigger).
+        """
+        pass
 
     def _connect_signals(self) -> None:
-        """Enlaza las señales emitidas por los widgets de la GUI con los slots/métodos internos del presentador."""
-        ...
+        """Enlaza las señales emitidas por los widgets de la GUI con los métodos internos del presentador."""
+        pass
 
-    def _update_results_gui(self, analyzer: Any) -> None:
-        """Actualiza el panel lateral de resultados de la GUI con los parámetros calculados ($U_t$, $T_1$, $T_2$, OS).
-
-        Args:
-            analyzer (Any): Instancia del analizador matemático con los resultados computados.
-        """
-        ...
+    def _update_results_gui(self, analyzer: LightningImpulseAnalyzer) -> None:
+        """Actualiza el panel lateral de la GUI con los parámetros calculados (:math:`U_t`, :math:`T_1`, :math:`T_2`, :math:`OS`)."""
+        pass
 
     def _on_graph_type_changed(self) -> None:
         """Maneja el evento de cambio entre vista de curva real (unidades del SI) y normalizada (p.u.)."""
-        ...
+        pass
 
     def _update_plot(self) -> None:
-        """Renderiza las ondas guardadas y las pendientes en el lienzo principal (CH1) y eje secundario (CH2).
+        """Renderiza dinámicamente las ondas en el lienzo principal y eje secundario (CH2).
 
-        Limpia las vistas previas e itera sobre los buffers en memoria (`saved_waves_data` y `pending_analyzers`)
-        para dibujar ambas trazas (CH1 y CH2), ajustando etiquetas y límites.
+        Limpia las vistas previas e itera sobre los buffers en memoria para dibujar las trazas,
+        asignando un feedback visual de colores específico según el estado del análisis:
+            - **Azul**: Tensión del Canal 1 analizada exitosamente.
+            - **Verde**: Corriente del Canal 2 analizada exitosamente.
+            - **Rojo**: Onda con análisis fallido (marca la leyenda como "Error (CHX)").
         """
-        ...
+        pass
 
     def load_tdg_waveform(self) -> None:
-        """Carga una onda sintética de calibración (TDG - IEC 61083-2) desde el disco para depuración de algoritmos (DEBUG_MODE)."""
-        ...
+        """Carga una onda sintética plana (TDG) desde el disco para depuración de algoritmos (DEBUG_MODE)."""
+        pass
 
     def search_manual_instrument(self) -> None:
         """Fuerza un escaneo de puertos en el bus VISA para inicializar o recuperar un osciloscopio compatible."""
-        ...
+        pass
 
     def create_new_project(self) -> None:
-        """Inicializa un ensayo nuevo o reanuda uno existente.
+        """Inicializa un ensayo nuevo o reanuda uno existente e inyecta la memoria histórica a la GUI.
 
-        Construye el árbol de directorios asociado, gestiona el archivo HDF5 e inyecta
-        las curvas y metadatos históricos a la RAM en caso de reanudar un trabajo previo.
+        .. note::
+            Integra una capa de seguridad (sanitización de strings) aplicando expresiones regulares 
+            (``re.sub``) sobre los campos numéricos y de cliente ingresados por el usuario. Esto elimina 
+            caracteres prohibidos por el Sistema Operativo (``\\/*?:"<>|``) garantizando que la creación 
+            física de las carpetas nunca colapse.
         """
-        ...
+        pass
 
     def receive_waveform(self) -> None:
         """Instancia o cancela el hilo `WaitWaveformThread` para la captura asíncrona de un disparo de hardware."""
-        ...
+        pass
 
     @Slot()
     def process_waveform(self) -> None:
         """Slot ejecutado tras la detección de un disparo. 
 
-        Descarga la memoria cruda de los canales habilitados del osciloscopio, 
-        aplica atenuadores de hardware y delega el procesamiento matemático.
+        Descarga la memoria cruda de los canales habilitados, aplica atenuadores y delega el análisis.
         """
-        ...
+        pass
 
     def _process_and_plot_acquired_data(self) -> None:
-        """Inyecta los arrays descargados en `AnalyzerClass` y `MockChannel2Analyzer`.
+        """Inyecta los arrays descargados a los analizadores matemáticos y actualiza el estado gráfico.
 
-        Ejecuta el modelo matemático dependiente del estado del ensayo (onda plena o cortada) 
-        y actualiza los resultados numéricos y gráficos en la GUI. Captura excepciones analíticas.
+        Ejecuta el modelo matemático en un entorno protegido. Si ocurre una excepción (ej. ruido excesivo o corte 
+        prematuro), la captura mediante ``try/except``, arroja un ``QMessageBox`` descriptivo y almacena una 
+        bandera (``success = False``) que instruirá al método de ploteo para dibujar la onda defectuosa en color rojo.
         """
-        ...
+        pass
 
     def save_waveform(self) -> None:
-        """Valida y empaqueta las condiciones de ensayo, resultados y metadatos, persistiéndolos en HDF5.
+        """Valida, empaqueta y persiste el evento, actualizando el lienzo del historial.
 
-        Adicionalmente exporta el archivo CSV crudo de la captura y transfiere los datos
-        pendientes al buffer `saved_waves_data` para su conservación visual.
+        Guarda el objeto HDF5, exporta un CSV crudo como backup y transfiere la traza exitosa al 
+        buffer persistente (``saved_waves_data``) añadiéndola al menú de visibilidad gráfico.
         """
-        ...
+        pass
 
     def _apply_hardware_attenuations(self, waveform: np.ndarray, channel: int) -> np.ndarray:
-        """Multiplica el array de tensión bruto por el factor del divisor resistivo y factor de atenuación configurados.
+        """Aplica la constante escalar nominal real de atenuación sobre la traza discreta."""
+        pass
 
-        Args:
-            waveform (np.ndarray): Datos de tensión crudos de la memoria.
-            channel (int): Identificador del canal bajo procesamiento (1 o 2).
+    def _check_attenuation_value(self, line_edit: QLineEdit, field_name: str) -> None:
+        """Valida que la entrada del usuario en atenuadores sea un número flotante estrictamente mayor a 0.
 
-        Returns:
-            np.ndarray: Vector escalado con la magnitud real en bornes del divisor de alta tensión.
+        .. note::
+            Actúa como un **fallback (mitigación de errores)**. Si el usuario borra por accidente 
+            el valor del divisor, lo deja en blanco, ingresa un cero, o ingresa caracteres inválidos, 
+            el presentador captura el fallo, advierte al operador y restaura el valor por 
+            defecto (``"1.0"``) automáticamente.
         """
-        ...
+        pass
 
-    def _check_attenuation_value(self, line_edit: Any, field_name: str) -> None:
-        """Valida que la entrada del usuario para los factores de atenuación sea un flotante estrictamente > 0.
-        
-        Args:
-            line_edit (Any): Widget `QLineEdit` bajo evaluación.
-            field_name (str): Identificador amigable del campo para mensajes de error de la interfaz.
-        """
-        ...
-
-    def _on_attenuation_changed(self, line_edit: Any, field_name: str, channel: int) -> None:
-        """Captura cambios manuales en los atenuadores y fuerza un reprocesamiento la onda pendiente.
-
-        Args:
-            line_edit (Any): Widget modificado en la interfaz.
-            field_name (str): Identificador amigable del campo para control de errores.
-            channel (int): Canal de hardware afectado.
-        """
-        ...
+    def _on_attenuation_changed(self, line_edit: QLineEdit, field_name: str, channel: int) -> None:
+        """Fuerza un reprocesamiento al vuelo del buffer temporal si el usuario ajusta un atenuador post-captura."""
+        pass
 
     def _toggle_attenuations(self) -> None:
-        """Habilita o deshabilita los controles de atenuación en la GUI según el estado del checkbox asociado."""
-        ...
+        """Conmuta dinámicamente el estado habilitado/deshabilitado de los divisores de hardware en la GUI."""
+        pass
 
     def _update_v_scale(self, channel: int, val_str: str, unit_str: str) -> None:
-        """Aplica parseo de ingeniería y envía el comando SCPI al osciloscopio para actualizar la escala vertical del canal indicado (V/div).
-
-        Args:
-            channel (int): Número de canal físico.
-            val_str (str): Cadena con la magnitud seleccionada por el usuario (ej. '5').
-            unit_str (str): Unidad seleccionada por el usuario (ej. 'mV', 'V').
-        """
-        ...
+        """Sincroniza y envía el valor de ganancia vertical (V/div) hacia el osciloscopio vía SCPI."""
+        pass
 
     def _update_t_scale(self, *args: Any) -> None:
-        """Aplica parseo de ingeniería y envía el comando SCPI al osciloscopio para actualizar la base de tiempo global (s/div)."""
-        ...
+        """Sincroniza y envía el comando de escala de base de tiempo horizontal (s/div) hacia el hardware."""
+        pass
 
     def _update_offset(self, channel: int) -> None:
-        """Aplica parseo de ingeniería y envía el comando SCPI al osciloscopio para actualizar el offset vertical de un canal específico.
-
-        Args:
-            channel (int): Número de canal físico a actualizar.
-        """
-        ...
+        """Sincroniza y actualiza la inyección de offset vertical continua de un canal en el instrumento."""
+        pass
 
     def _update_delay(self) -> None:
-        """Aplica parseo de ingeniería y envía el comando SCPI al osciloscopio para actualizar la posición horizontal (delay) de la base de tiempo."""
-        ...
+        """Actualiza la posición del retardo horizontal (delay) de barrido temporal."""
+        pass
 
     def _update_trigger_level(self) -> None:
-        """Aplica parseo de ingeniería y envía el comando SCPI al osciloscopio para actualizar el nivel de tensión del disparo (trigger)."""
-        ...
+        """Envía el umbral de tensión absoluto para activar la topología del circuito de disparo."""
+        pass
 
     @Slot(str)
     def _handle_thread_error(self, error_msg: str) -> None:
-        """Informa mediante una ventana modal los fallos críticos del hilo de captura y reactiva el botón 'Iniciar'.
-
-        Args:
-            error_msg (str): Mensaje descriptivo o traceback de la excepción.
-        """
-        ...
+        """Maneja e informa fallas críticas surgidas en el sub-hilo de adquisición asíncrona."""
+        pass
 
     def synchronize_instrument(self) -> None:
-        """Envía el comando SCPI `*RST` al osciloscopio para restablecerlo a estado de fábrica, y agenda la re-sincronización de estado de la GUI en diferido."""
-        ...
+        """Lanza un comando `*RST` de fábrica agendando la re-sincronización de la GUI en diferido."""
+        pass
 
     def _continue_synchronization(self) -> None:
-        """Aplica secuencialmente todos los parámetros de estado de la GUI (escalas, offsets, triggers) al hardware."""
-        ...
+        """Aplica masivamente el estado actual de los selectores de la GUI hacia la memoria de la placa del hardware."""
+        pass
 
     def _change_voltage_unit(self, channel: int, unit: str) -> None:
-        """Actualiza el sub-menú dinámico de magnitudes de tensión basándose en la unidad principal seleccionada para el canal indicado.
-
-        Args:
-            channel (int): Identificador de canal.
-            unit (str): Nueva unidad seleccionada ('mV' o 'V').
-        """
-        ...
+        """Modifica dinámicamente el Combobox de magnitudes de tensión basándose en la unidad principal."""
+        pass
 
     def _change_time_unit(self, unit: str) -> None:
-        """Actualiza el sub-menú dinámico de base de tiempo basándose en la unidad principal seleccionada.
-
-        Args:
-            unit (str): Nueva unidad de tiempo seleccionada ('ns', 'µs', 'ms', 's').
-        """
-        ...
+        """Modifica dinámicamente el Combobox de la base de tiempo horizontal basándose en la unidad."""
+        pass
 
     def _toggle_wave_visibility(self, name: str, checked: bool) -> None:
-        """Alterna la visibilidad de una onda individual en el gráfico principal.
-
-        Cambia el estado de la bandera interna de visibilidad para una curva almacenada en memoria, y solicita actualización del lienzo para reflejar los cambios en la interfaz.
-
-        Args:
-            name (str): Identificador interno del objeto onda en el diccionario.
-            checked (bool): Estado de visibilidad particular (`True` para mostrar, `False` para ocultar).
-        """
-        ...
+        """Conmuta y solicita el renderizado inmediato individual de una curva almacenada."""
+        pass
 
     def _set_all_waves_visibility(self, visible: bool) -> None:
-        """Alterna la visibilidad del historial de curvas en el gráfico principal.
-
-        Cambia el estado de la bandera interna de visibilidad para todas las curvas almacenadas en memoria, y solicita actualización del lienzo para reflejar los cambios en la interfaz.
-
-        Args:
-            visible (bool): Estado de visibilidad global (`True` para mostrar, `False` para ocultar).
-        """
-        ...
+        """Aplica un estado de visibilidad masivo e incondicional a todo el historial de curvas del gráfico."""
+        pass
 
     def export_results(self) -> None:
-        """Invoca al gestor de archivos para compilar la base de datos HDF5 activa, hacia una tabla plana Excel (.xlsx)."""
-        ...
+        """Exporta tabularmente los resultados analíticos recopilados hacia ficheros estructurados (Excel/CSV).
+
+        .. note::
+            Posee un comportamiento deliberadamente invasivo: tras exportar el documento con éxito, 
+            la subrutina importa módulos de bajo nivel (``platform`` y ``subprocess``) para invocar al explorador 
+            de archivos nativo del sistema operativo (Windows ``explorer``, macOS ``open`` o Linux ``xdg-open``) 
+            y forzar su apertura apuntando al documento recién creado. Esto optimiza la experiencia 
+            de usuario en metrología, dándole acceso inmediato a la tabla para su revisión o impresión.
+        """
+        pass

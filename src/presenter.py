@@ -428,7 +428,7 @@ class MainPresenter(QObject):
             inBuffer = waveform
 
             # Simula leer en el canal principal activo.
-            active_channel = 1 if self.ui.ch1_enabler.isChecked() else (2 if self.ui.ch2_enabler.isChecked() else 1)
+            active_channel = 2 if self.ui.ch2_enabler.isChecked() else 1
             real_waveform = self._apply_hardware_attenuations(waveform, active_channel)
 
             self.last_acquired_data = {}

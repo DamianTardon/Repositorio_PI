@@ -1,3 +1,5 @@
+# En caso de error de escritura, captura la excepción y ejecuta :meth:`close`.
+# En caso de error de lectura, captura la excepción y ejecuta :meth:`close`.
 """Módulo de interfaz de hardware para el osciloscopio GW Instek de la serie GDS-1000A-U.
 
 Este módulo encapsula todas las operaciones de control síncrono, configuración
@@ -264,7 +266,7 @@ class GWInstekGDS1000AU:
     def set_channel_scale(self, channel: int, value: float) -> None:
         """Configura la escala vertical en el canal seleccionado.
 
-        Si ocurre un fallo durante la escritura, captura la excepción e invoca :meth:`close`.
+        En caso de error de escritura, captura la excepción y ejecuta :meth:`close`.
 
         Args:
             channel (int): Canal del osciloscopio a modificar (1 o 2).
@@ -302,7 +304,7 @@ class GWInstekGDS1000AU:
     def set_timebase_scale(self, value: float) -> None:
         """Configura la base de tiempo horizontal para la digitalización.
 
-        Cualquier error de E/S capturado activará :meth:`close`.
+        En caso de error de escritura, captura la excepción y ejecuta :meth:`close`.
 
         Args:
             value (float): Tiempo por división requerido en :math:`\unit{\second/\text{div}}`.
@@ -337,7 +339,7 @@ class GWInstekGDS1000AU:
     def set_timebase_position(self, value: float) -> None:
         """Configura la posición horizontal (delay) del punto de disparo en el eje temporal.
 
-        En caso de falla de comando, captura la excepción e invoca :meth:`close`.
+        En caso de error de escritura, captura la excepción y ejecuta :meth:`close`.
 
         Args:
             value (float): Tiempo de retardo en :math:`\unit{\second}`.
@@ -352,18 +354,14 @@ class GWInstekGDS1000AU:
         except Exception as e:
             print("Error al configurar la posición horizontal:", e)
             self.close()
-#------------------------------------------------------------------------------------------
-    # Posiblemente este método es inútil.
-    def set_trigger(self, trigger_mode):
-        try:
-            self.dso.write(trigger_mode)
-            print("Modo de disparo configurado exitosamente.")
-        except Exception as e:
-            print("Error al configurar el modo de disparo:", e)
-            self.close()
-#------------------------------------------------------------------------------------------
 
-    def get_trigger_level(self):
+    def get_trigger_level(self) -> Optional[float]:
+        """Consulta el umbral absoluto de tensión utilizado para la detección del flanco de disparo.
+
+        Returns:
+            Optional[float]: Nivel de trigger en :math:`\unit{\volt}`, o ``None`` si se produce 
+            un error de hardware (activando :meth:`close`).
+        """
         try:
             level = float(self.dso.query(':trigger:level?'))
             return level
@@ -371,7 +369,14 @@ class GWInstekGDS1000AU:
             print("Error al obtener el nivel de disparo:", e)
             self.close()
 
-    def set_trigger_level(self, trigger_level):
+    def set_trigger_level(self, trigger_level: float) -> None:
+        """Configura el umbral absoluto de tensión de disparo.
+
+        En caso de error de escritura, captura la excepción y ejecuta :meth:`close`.
+
+        Args:
+            trigger_level (float): Tensión requerida en :math:`\unit{\volt}`.
+        """
         try:
             self.dso.write(f':trigger:level {trigger_level}')
             if self.get_trigger_level() == trigger_level:
@@ -382,7 +387,13 @@ class GWInstekGDS1000AU:
             print("Error al configurar el nivel de disparo:", e)
             self.close()
 
-    def get_trigger_coupling(self):
+    def get_trigger_coupling(self) -> Optional[str]:
+        """Consulta el acoplamiento eléctrico del circuito del trigger.
+
+        Returns:
+            Optional[str]: Modo de acoplamiento analógico detectado ('AC' o 'DC'), o ``None`` 
+            en caso de error (con invocación a :meth:`close`).
+        """
         couplings = ('AC', 'DC')
         try:
             coupling = self.dso.query(':trigger:couple?')
@@ -392,7 +403,14 @@ class GWInstekGDS1000AU:
             print("Error al obtener el acoplamiento de trigger:", e)
             self.close()
 
-    def set_trigger_coupling(self, coupling):
+    def set_trigger_coupling(self, coupling: int) -> None:
+        """Configura el acoplamiento eléctrico del circuito del trigger.
+
+        En caso de error de escritura, captura la excepción y ejecuta :meth:`close`.
+
+        Args:
+            coupling (int): Índice de modo: 0 para 'AC', 1 para 'DC'.
+        """
         couplings = ('AC', 'DC')
         try:
             self.dso.write(f':trigger:couple {coupling}')
@@ -405,7 +423,13 @@ class GWInstekGDS1000AU:
             print("Error al configurar el acoplamiento de trigger:", e)
             self.close()
 
-    def get_trigger_mode(self):
+    def get_trigger_mode(self) -> Optional[str]:
+        """Consulta el modo de actualización del trigger.
+
+        Returns:
+            Optional[str]: Cadena descriptiva del modo ('Auto' o 'Normal'), o ``None`` 
+            si falla el dispositivo (activando :meth:`close`).
+        """
         modes = ('Auto', 'Normal')
         try:
             mode = self.dso.query(':trigger:mode?')
@@ -415,7 +439,14 @@ class GWInstekGDS1000AU:
             print("Error al obtener el modo de trigger:", e)
             self.close()
 
-    def set_trigger_mode(self, mode):
+    def set_trigger_mode(self, mode: int) -> None:
+        """Configura el modo actualización del trigger.
+
+        En caso de error de escritura, captura la excepción y ejecuta :meth:`close`.
+
+        Args:
+            mode (int): Índice de selección: 0 para 'Auto', 1 para 'Normal'.
+        """
         modes = ('Auto', 'Normal')
         try:
             self.dso.write(f':trigger:mode {mode+1}')
@@ -428,7 +459,13 @@ class GWInstekGDS1000AU:
             print("Error al configurar el modo de trigger:", e)
             self.close()
 
-    def get_trigger_nrej(self):
+    def get_trigger_nrej(self) -> Optional[str]:
+        """Consulta el estado del circuito de rechazo de ruido acoplado al trigger.
+
+        Returns:
+            Optional[str]: Estado de conmutación ('OFF' o 'ON'), o ``None`` ante fallos 
+            (forzando :meth:`close`).
+        """
         states = ('OFF', 'ON')
         try:
             nrej = self.dso.query(':trigger:nrej?')
@@ -439,7 +476,14 @@ class GWInstekGDS1000AU:
             print("Error al obtener el estado de rechazo de ruido de trigger:", e)
             self.close()
 
-    def set_trigger_nrej(self, state):
+    def set_trigger_nrej(self, state: int) -> None:
+        """Habilita o deshabilita el circuito de rechazo de ruido acoplado al trigger.
+
+        En caso de error de escritura, captura la excepción y ejecuta :meth:`close`.
+
+        Args:
+            state (int): 0 para apagar ('OFF'), 1 para encender ('ON').
+        """
         states = ('OFF', 'ON')
         try:
             self.dso.write(f':trigger:nrej {state}')
@@ -452,7 +496,13 @@ class GWInstekGDS1000AU:
             print("Error al configurar el rechazo de ruido de trigger:", e)
             self.close()
 
-    def get_trigger_reject(self):
+    def get_trigger_reject(self) -> Optional[str]:
+        """Consulta el tipo de filtro de frecuencia acoplado al trigger.
+
+        Returns:
+            Optional[str]: Modo de filtrado ('OFF', 'LF', 'HF'), o ``None`` si falla la 
+            lectura e invoca :meth:`close`.
+        """
         modes = ('OFF', 'LF', 'HF')
         try:
             rej = self.dso.query(':trigger:reject?')
@@ -462,7 +512,15 @@ class GWInstekGDS1000AU:
             print("Error al obtener el filtro de ruido de trigger:", e)
             self.close()
 
-    def set_trigger_reject(self, mode):
+    def set_trigger_reject(self, mode: int) -> None:
+        """Configura el tipo de filtro de frecuencia acoplado al trigger.
+
+        En caso de error de escritura, captura la excepción y ejecuta :meth:`close`.
+
+        Args:
+            mode (int): Selector numérico: 0 para 'OFF', 1 para baja frecuencia ('LF'), 
+                2 para alta frecuencia ('HF').
+        """
         modes = ('OFF', 'LF', 'HF')
         try:
             self.dso.write(f':trigger:reject {mode}')
@@ -475,7 +533,13 @@ class GWInstekGDS1000AU:
             print("Error al configurar el filtro de ruido de trigger:", e)
             self.close()
 
-    def get_trigger_slope(self):
+    def get_trigger_slope(self) -> Optional[str]:
+        """Consulta la polaridad de la pendiente (flanco) del disparo.
+
+        Returns:
+            Optional[str]: Dirección de pendiente detectada ('Positivo' o 'Negativo'), o ``None`` 
+            ante fallos operacionales.
+        """
         slopes = ('Positivo', 'Negativo')
         try:
             slope = self.dso.query(':trigger:slope?')
@@ -485,7 +549,14 @@ class GWInstekGDS1000AU:
             print("Error al obtener el flanco de trigger:", e)
             self.close()
 
-    def set_trigger_slope(self, slope):
+    def set_trigger_slope(self, slope: int) -> None:
+        """Configura la polaridad de la pendiente (flanco) del disparo.
+
+        En caso de error de escritura, captura la excepción y ejecuta :meth:`close`.
+
+        Args:
+            slope (int): Dirección requerida: 0 para 'Positivo', 1 para 'Negativo'.
+        """
         slopes = ('Positivo', 'Negativo')
         try:
             self.dso.write(f':trigger:slope {slope}')
@@ -498,7 +569,13 @@ class GWInstekGDS1000AU:
             print("Error al configurar el flanco de trigger:", e)
             self.close()
 
-    def get_trigger_state(self):
+    def get_trigger_state(self) -> Optional[str]:
+        """Verifica en si el osciloscopio capturó una señal.
+
+        Returns:
+            Optional[str]: Estado síncrono de la captura ('No disparado' o 'Disparado'), 
+            o ``None`` si se pierde la conexión y se fuerza el :meth:`close`.
+        """
         states = ('No disparado', 'Disparado')
         try:
             state = self.dso.query(':trigger:state?')
@@ -508,7 +585,13 @@ class GWInstekGDS1000AU:
             print("Error al obtener el estado de trigger:", e)
             self.close()
 
-    def get_trigger_source(self):
+    def get_trigger_source(self) -> Optional[str]:
+        """Consulta cuál es la señal de referencia acoplada al trigger.
+
+        Returns:
+            Optional[str]: Identificador de fuente ('Canal 1', 'Canal 2', 
+            'Externo', 'Red'), o ``None`` en caso de excepción manejada.
+        """
         sources = ('Canal 1', 'Canal 2', 'Externo', 'Red')
         try:
             source = self.dso.query(':trigger:source?')
@@ -518,7 +601,15 @@ class GWInstekGDS1000AU:
             print("Error al obtener la fuente de trigger:", e)
             self.close()
 
-    def set_trigger_source(self, source):
+    def set_trigger_source(self, source: int) -> None:
+        """Configura la señal de referencia acoplada al trigger.
+
+        En caso de error de escritura, captura la excepción y ejecuta :meth:`close`.
+
+        Args:
+            source (int): Código de mapeo: 0 para 'Canal 1', 1 para 'Canal 2', 
+                2 para 'Externo', 3 para 'Red'.
+        """
         sources = ('Canal 1', 'Canal 2', 'Externo', 'Red')
         try:
             self.dso.write(f':trigger:source {source}')
@@ -531,7 +622,13 @@ class GWInstekGDS1000AU:
             print("Error al configurar la fuente de trigger:", e)
             self.close()
 
-    def get_trigger_type(self):
+    def get_trigger_type(self) -> Optional[str]:
+        """Consulta el tipo de evento disparador del osciloscopio.
+
+        Returns:
+            Optional[str]: Descriptor del modo de trigger ('Edge', 'Video', 'Pulse'), 
+            o ``None`` tras capturar una excepción de lectura.
+        """
         types = ('Edge', 'Video', 'Pulse')
         try:
             ttype = self.dso.query(':trigger:type?')
@@ -541,7 +638,14 @@ class GWInstekGDS1000AU:
             print("Error al obtener el tipo de trigger:", e)
             self.close()
 
-    def set_trigger_type(self, ttype):
+    def set_trigger_type(self, ttype: int) -> None:
+        """Configura el tipo de evento disparador del osciloscopio.
+
+        En caso de error de escritura, captura la excepción y ejecuta :meth:`close`.
+
+        Args:
+            ttype (int): Selector de tipo: 0 para 'Edge', 1 para 'Video', 2 para 'Pulse'.
+        """
         types = ('Edge', 'Video', 'Pulse')
         try:
             self.dso.write(f':trigger:type {ttype}')
@@ -554,7 +658,13 @@ class GWInstekGDS1000AU:
             print("Error al configurar el tipo de trigger:", e)
             self.close()
 
-    def get_acquire_mode(self):
+    def get_acquire_mode(self) -> Optional[str]:
+        """Consulta el modo de adquisición algorítmica del osciloscopio.
+
+        Returns:
+            Optional[str]: Descriptor de adquisición ('Normal', 'Peak detect', 'Average'), 
+            o ``None`` tras fallar de forma segura en :meth:`close`.
+        """
         modes = ('Normal', 'Peak detect', 'Average')
         try:
             mode = self.dso.query(':acquire:mode?')
@@ -564,7 +674,15 @@ class GWInstekGDS1000AU:
             print("Error al obtener el modo de adquisición:", e)
             self.close()
 
-    def set_acquire_mode(self, mode):
+    def set_acquire_mode(self, mode: int) -> None:
+        """Configura el modo de adquisición algorítmica del osciloscopio.
+
+        En caso de error de escritura, captura la excepción y ejecuta :meth:`close`.
+
+        Args:
+            mode (int): Constante de conmutación: 0 para 'Normal', 1 para 'Peak detect', 
+                2 para 'Average'.
+        """
         modes = ('Normal', 'Peak detect', 'Average')
         try:
             self.dso.write(f':acquire:mode {mode}')
@@ -577,7 +695,13 @@ class GWInstekGDS1000AU:
             print("Error al configurar el modo de adquisición:", e)
             self.close()
 
-    def get_channel_coupling(self, channel):
+    def get_channel_coupling(self, channel: int) -> Optional[str]:
+        """Consulta el tipo de acoplamiento galvánico de entrada del canal de entrada.
+
+        Returns:
+            Optional[str]: Estado de acoplamiento de entrada ('AC', 'DC', 'GND'), o ``None`` 
+            ante fallas del bus manejadas por :meth:`close`.
+        """
         couplings = ('AC', 'DC', 'GND')
         try:
             coupling = self.dso.query(f':channel{channel}:coupling?')
@@ -587,7 +711,15 @@ class GWInstekGDS1000AU:
             print("Error al obtener el acoplamiento del canal:", e)
             self.close()
 
-    def set_channel_coupling(self, channel, coupling):
+    def set_channel_coupling(self, channel: int, coupling: int) -> None:
+        """Configura el tipo de acoplamiento galvánico de entrada del canal de entrada.
+
+        En caso de error de escritura, captura la excepción y ejecuta :meth:`close`.
+
+        Args:
+            channel (int): Identificador del canal del osciloscopio (1 o 2).
+            coupling (int): Constante de modo: 0 para 'AC', 1 para 'DC', 2 para 'GND'.
+        """
         couplings = ('AC', 'DC', 'GND')
         try:
             self.dso.write(f':channel{channel}:coupling {coupling}')
@@ -600,7 +732,13 @@ class GWInstekGDS1000AU:
             print("Error al configurar el acoplamiento del canal:", e)
             self.close()
 
-    def get_channel_display(self, channel):
+    def get_channel_display(self, channel: int) -> Optional[str]:
+        """Consulta la visualización de un canal en pantalla.
+
+        Returns:
+            Optional[str]: Estado de visualización ('OFF' u 'ON'), o ``None`` si se desencadena 
+            el protocolo de :meth:`close` por errores SCPI.
+        """
         states = ('OFF', 'ON')
         try:
             display = self.dso.query(f':channel{channel}:display?')
@@ -611,7 +749,15 @@ class GWInstekGDS1000AU:
             print("Error al obtener el estado de visualización del canal:", e)
             self.close()
 
-    def set_channel_display(self, channel, state):
+    def set_channel_display(self, channel: int, state: int) -> None:
+        """Configura la visualización de un canal en pantalla.
+
+        En caso de error de escritura, captura la excepción y ejecuta :meth:`close`.
+
+        Args:
+            channel (int): Canal a modificar (1 o 2).
+            state (int): Estado de visualización: 0 para apagar ('OFF'), 1 para encender ('ON').
+        """
         states = ('OFF', 'ON')
         try:
             self.dso.write(f':channel{channel}:display {state}')
@@ -624,7 +770,13 @@ class GWInstekGDS1000AU:
             print("Error al configurar el estado de visualización del canal:", e)
             self.close()
 
-    def get_channel_offset(self, channel):
+    def get_channel_offset(self, channel: int) -> Optional[float]:
+        """Consulta la tensión continua (offset) de compensación vertical del canal indicado.
+
+        Returns:
+            Optional[float]: Tensión continua de desplazamiento inyectada en :math:`\unit{\volt}`, 
+            o ``None`` si el método atrapa una excepción y libera los recursos.
+        """
         try:
             offset = float(self.dso.query(f':channel{channel}:offset?'))
             print(f'Offset del canal {channel}: {offset} [V]')
@@ -633,7 +785,15 @@ class GWInstekGDS1000AU:
             print("Error al obtener el offset del canal:", e)
             self.close()
 
-    def set_channel_offset(self, channel, offset):
+    def set_channel_offset(self, channel: int, offset: float) -> None:
+        """Configura la tensión continua (offset) de compensación vertical del canal indicado.
+
+        En caso de error de escritura, captura la excepción y ejecuta :meth:`close`.
+
+        Args:
+            channel (int): Identificador del canal (1 o 2).
+            offset (float): Tensión continua de desplazamiento en :math:`\unit{\volt}`.
+        """
         try:
             self.dso.write(f':channel{channel}:offset {offset}')
             current_offset = self.get_channel_offset(channel)
@@ -645,7 +805,13 @@ class GWInstekGDS1000AU:
             print("Error al configurar el offset del canal:", e)
             self.close()
 
-    def get_channel_attenuation(self, channel):
+    def get_channel_attenuation(self, channel: int) -> Optional[float]:
+        """Consulta el multiplicador de escala interno (Probe Ratio) de la punta del canal.
+
+        Returns:
+            Optional[float]: Relación escalar de atenuación geométrica, o ``None`` tras capturar 
+            una excepción de hardware.
+        """
         try:
             attenuation = float(self.dso.query(f':channel{channel}:probe:ratio?'))
             print(f'Factor de atenuación del canal {channel}: {attenuation}')
@@ -654,7 +820,15 @@ class GWInstekGDS1000AU:
             print("Error al obtener el factor de atenuación del canal:", e)
             self.close()
 
-    def set_channel_attenuation(self, channel, attenuation):
+    def set_channel_attenuation(self, channel: int, attenuation: float) -> None:
+        """Configura el multiplicador de escala interno (Probe Ratio) de la punta del canal.
+
+        En caso de error de escritura, captura la excepción y ejecuta :meth:`close`.
+
+        Args:
+            channel (int): Número de canal (1 o 2).
+            attenuation (float): Factor numérico nominal (ej. 10.0 para punta x10).
+        """
         try:
             self.dso.write(f':channel{channel}:probe:ratio {attenuation}')
             current_attenuation = self.get_channel_attenuation(channel)
@@ -666,7 +840,13 @@ class GWInstekGDS1000AU:
             print("Error al configurar el factor de atenuación del canal:", e)
             self.close()
 
-    def get_channel_type(self, channel):
+    def get_channel_type(self, channel: int) -> Optional[str]:
+        """Consulta la magnitud física asociada lógicamente a la punta de prueba del canal.
+
+        Returns:
+            Optional[str]: Descripción física de la magnitud ('Tensión' o 'Corriente'), o ``None`` 
+            si se pierde la comunicación manejada.
+        """
         types = ('Tensión', 'Corriente')
         try:
             ctype = self.dso.query(f':channel{channel}:probe:type?')
@@ -676,7 +856,15 @@ class GWInstekGDS1000AU:
             print("Error al obtener el tipo de prueba del canal:", e)
             self.close()
 
-    def set_channel_type(self, channel, ctype):
+    def set_channel_type(self, channel: int, ctype: int) -> None:
+        """Configura la magnitud física asociada lógicamente a la punta de prueba del canal.
+
+        En caso de error de escritura, captura la excepción y ejecuta :meth:`close`.
+
+        Args:
+            channel (int): Número de canal (1 o 2).
+            ctype (int): 0 para Tensión (:math:`\unit{\volt}`), 1 para Corriente (:math:`\unit{\ampere}`).
+        """
         types = ('Tensión', 'Corriente')
         try:
             self.dso.write(f':channel{channel}:probe:type {ctype}')
@@ -689,7 +877,11 @@ class GWInstekGDS1000AU:
             print("Error al configurar el tipo de prueba del canal:", e)
             self.close()
 
-    def set_single_trigger(self):
+    def set_single_trigger(self) -> None:
+        """Configura el disparo del osciloscopio para capturar un único evento.
+        
+        En caso de error de escritura, captura la excepción y ejecuta :meth:`close`.
+        """
         try:
             self.dso.write(':single')
             print("Disparo único configurado exitosamente.")
@@ -697,8 +889,13 @@ class GWInstekGDS1000AU:
             print("Error al configurar el disparo único:", e)
             self.close()
 
-    def close(self):
-        # Cierra la conexión con el instrumento y el gestor de recursos.
+    def close(self) -> None:
+        """Termina y libera de manera ordenada la interfaz de conexión VISA y el ResourceManager.
+        
+        Este método es invocado explícitamente por el usuario para cerrar el instrumento, 
+        o internamente por el propio controlador como método de seguridad (failsafe) cuando 
+        se atrapan excepciones no controladas.
+        """
         if self.dso:
             try:
                 self.dso.close()
@@ -714,13 +911,29 @@ class GWInstekGDS1000AU:
             except Exception as e:
                 print("Error al cerrar el gestor de recursos:", e)
 
-    def __del__(self):
-        # Asegura que los recursos se liberen cuando el objeto es destruido.
+    def __del__(self) -> None:
+        """Destructor síncrono que garantiza la liberación de descriptores de hardware del SO invocando :meth:`close`.
+        
+        Asegura que los recursos se liberen cuando el objeto es destruido.
+        """
         self.close()
 
     #----------------------------------------------------------------------------------------------
     @staticmethod
-    def process_multipliers(value, unit):
+    def process_multipliers(value: Union[str, float], unit: str) -> Optional[float]:
+        """Procesa y convierte valores numéricos con prefijos del Sistema Internacional (SI) de unidades.
+
+        Aplica factores de escala de manera agnóstica para transformar a unidades base (Voltios o Segundos).
+        Si la unidad introducida no es reconocida, asume automáticamente un multiplicador base de ``1.0``.
+
+        Args:
+            value (Union[str, float]): Magnitud numérica escalar (texto numérico o primitivo flotante).
+            unit (str): Símbolo del submúltiplo físico ('V', 'mV', 'uV', 's', 'ms', 'µs', 'ns').
+
+        Returns:
+            Optional[float]: Valor absoluto escalado a la unidad fundamental del SI, o 
+            ``None`` si el valor ingresado carece de validez numérica.
+        """
         multipliers = {
             "V": 1.0,        # Volt.
             "mV": 1e-3,      # Milivolt.

@@ -205,7 +205,7 @@ class GWInstekGDS1000AU:
         pass
 
     def set_trigger_level(self, trigger_level: float) -> None:
-        """Modifica el umbral analógico de tensión de disparo.
+        """Configura el umbral absoluto de tensión de disparo.
 
         Captura excepciones durante el ajuste y fuerza un ciclo :meth:`close`.
 
@@ -224,7 +224,7 @@ class GWInstekGDS1000AU:
         pass
 
     def set_trigger_coupling(self, coupling: int) -> None:
-        """Establece el acoplamiento de señal en la etapa de trigger.
+        """Configura el acoplamiento eléctrico del circuito del trigger.
 
         Captura cualquier fallo de conexión y redirige a :meth:`close`.
 
@@ -234,7 +234,7 @@ class GWInstekGDS1000AU:
         pass
 
     def get_trigger_mode(self) -> Optional[str]:
-        """Obtiene el modo operacional de barrido del trigger.
+        """Consulta el modo de actualización del trigger.
 
         Returns:
             Optional[str]: Cadena descriptiva del modo ('Auto' o 'Normal'), o ``None`` 
@@ -243,7 +243,7 @@ class GWInstekGDS1000AU:
         pass
 
     def set_trigger_mode(self, mode: int) -> None:
-        """Configura el modo operacional de adquisición ante eventos de disparo.
+        """Configura el modo actualización del trigger.
 
         Si se interrumpe la comunicación, atrapa la excepción y libera mediante :meth:`close`.
 
@@ -253,7 +253,7 @@ class GWInstekGDS1000AU:
         pass
 
     def get_trigger_nrej(self) -> Optional[str]:
-        """Consulta el estado del circuito analógico de rechazo de ruido acoplado al trigger.
+        """Consulta el estado del circuito de rechazo de ruido acoplado al trigger.
 
         Returns:
             Optional[str]: Estado de conmutación ('OFF' o 'ON'), o ``None`` ante fallos 
@@ -262,7 +262,7 @@ class GWInstekGDS1000AU:
         pass
 
     def set_trigger_nrej(self, state: int) -> None:
-        """Habilita o deshabilita la filtración de histéresis de ruido en el bloque del trigger.
+        """Habilita o deshabilita el circuito de rechazo de ruido acoplado al trigger.
 
         Desencadena un ciclo failsafe (:meth:`close`) ante excepciones SCPI.
 
@@ -272,7 +272,7 @@ class GWInstekGDS1000AU:
         pass
 
     def get_trigger_reject(self) -> Optional[str]:
-        """Obtiene el tipo de filtrado de rechazo de frecuencia activo.
+        """Consulta el tipo de filtro de frecuencia acoplado al trigger.
 
         Returns:
             Optional[str]: Modo de filtrado ('OFF', 'LF', 'HF'), o ``None`` si falla la 
@@ -281,7 +281,7 @@ class GWInstekGDS1000AU:
         pass
 
     def set_trigger_reject(self, mode: int) -> None:
-        """Configura filtros físicos de corte de frecuencia sobre el nodo analógico de trigger.
+        """Configura el tipo de filtro de frecuencia acoplado al trigger.
 
         Captura errores de hardware y asegura el instrumento con :meth:`close`.
 
@@ -292,7 +292,7 @@ class GWInstekGDS1000AU:
         pass
 
     def get_trigger_slope(self) -> Optional[str]:
-        """Consulta el tipo de pendiente analógica (flanco) asignada para el disparo.
+        """Consulta la polaridad de la pendiente (flanco) del disparo.
 
         Returns:
             Optional[str]: Dirección de pendiente detectada ('Positivo' o 'Negativo'), o ``None`` 
@@ -301,7 +301,7 @@ class GWInstekGDS1000AU:
         pass
 
     def set_trigger_slope(self, slope: int) -> None:
-        """Configura la polaridad del flanco transitorio sobre el cual se evalúa el disparo.
+        """Configura la polaridad de la pendiente (flanco) del disparo.
 
         Un fallo durante el ajuste capturará la excepción y llamará a :meth:`close`.
 
@@ -311,7 +311,7 @@ class GWInstekGDS1000AU:
         pass
 
     def get_trigger_state(self) -> Optional[str]:
-        """Verifica en tiempo real si el hardware del osciloscopio capturó un evento válido.
+        """Verifica en si el osciloscopio capturó una señal.
 
         Returns:
             Optional[str]: Estado síncrono de la captura ('No disparado' o 'Disparado'), 
@@ -320,16 +320,16 @@ class GWInstekGDS1000AU:
         pass
 
     def get_trigger_source(self) -> Optional[str]:
-        """Consulta cuál canal físico actúa como la fuente de trigger actual.
+        """Consulta cuál es la señal de referencia acoplada al trigger.
 
         Returns:
-            Optional[str]: Identificador analógico de fuente ('Canal 1', 'Canal 2', 
+            Optional[str]: Identificador de fuente ('Canal 1', 'Canal 2', 
             'Externo', 'Red'), o ``None`` en caso de excepción manejada.
         """
         pass
 
     def set_trigger_source(self, source: int) -> None:
-        """Establece la señal física de referencia acoplada al comparador del trigger.
+        """Configura la señal de referencia acoplada al trigger.
 
         Asegura la sesión VISA mediante :meth:`close` si falla la configuración.
 
@@ -340,7 +340,7 @@ class GWInstekGDS1000AU:
         pass
 
     def get_trigger_type(self) -> Optional[str]:
-        """Obtiene el tipo de topología algorítmica de trigger activo en el osciloscopio.
+        """Consulta el tipo de evento disparador del osciloscopio.
 
         Returns:
             Optional[str]: Descriptor del modo de trigger ('Edge', 'Video', 'Pulse'), 
@@ -349,7 +349,7 @@ class GWInstekGDS1000AU:
         pass
 
     def set_trigger_type(self, ttype: int) -> None:
-        """Configura el tipo matemático de discriminación para el evento de disparo.
+        """Configura el tipo de evento disparador del osciloscopio.
 
         Si la conexión falla, redirige a la rutina de :meth:`close`.
 
@@ -359,7 +359,7 @@ class GWInstekGDS1000AU:
         pass
 
     def get_acquire_mode(self) -> Optional[str]:
-        """Consulta el modo de adquisición algorítmica y filtrado post-digitalización.
+        """Consulta el modo de adquisición algorítmica del osciloscopio.
 
         Returns:
             Optional[str]: Descriptor de adquisición ('Normal', 'Peak detect', 'Average'), 
@@ -368,7 +368,7 @@ class GWInstekGDS1000AU:
         pass
 
     def set_acquire_mode(self, mode: int) -> None:
-        """Ajusta el procesamiento digital del hardware para el muestreo interno.
+        """Configura el modo de adquisición algorítmica del osciloscopio.
 
         Captura errores de escritura VISA e invoca de inmediato a :meth:`close`.
 
@@ -379,7 +379,7 @@ class GWInstekGDS1000AU:
         pass
 
     def get_channel_coupling(self, channel: int) -> Optional[str]:
-        """Consulta el tipo de acoplamiento galvánico de entrada del canal analógico.
+        """Consulta el tipo de acoplamiento galvánico de entrada del canal de entrada.
 
         Returns:
             Optional[str]: Estado de acoplamiento de entrada ('AC', 'DC', 'GND'), o ``None`` 
@@ -388,7 +388,7 @@ class GWInstekGDS1000AU:
         pass
 
     def set_channel_coupling(self, channel: int, coupling: int) -> None:
-        """Establece los filtros galvánicos o de referencia a masa del canal de entrada.
+        """Configura el tipo de acoplamiento galvánico de entrada del canal de entrada.
 
         En caso de excepción en la interfaz USB/Ethernet, invoca a :meth:`close`.
 
@@ -399,7 +399,7 @@ class GWInstekGDS1000AU:
         pass
 
     def get_channel_display(self, channel: int) -> Optional[str]:
-        """Determina si la traza de un canal se encuentra renderizándose activa en pantalla.
+        """Consulta la visualización de un canal en pantalla.
 
         Returns:
             Optional[str]: Estado de visualización ('OFF' u 'ON'), o ``None`` si se desencadena 
@@ -408,18 +408,18 @@ class GWInstekGDS1000AU:
         pass
 
     def set_channel_display(self, channel: int, state: int) -> None:
-        """Conmuta la visualización y digitalización en segundo plano de un canal físico.
+        """Configura la visualización de un canal en pantalla.
 
         Previene el bloqueo del hardware invocando a :meth:`close` ante errores.
 
         Args:
-            channel (int): Canal del hardware a modificar (1 o 2).
-            state (int): Estado binario: 0 para apagar ('OFF'), 1 para encender ('ON').
+            channel (int): Canal a modificar (1 o 2).
+            state (int): Estado de visualización: 0 para apagar ('OFF'), 1 para encender ('ON').
         """
         pass
 
     def get_channel_offset(self, channel: int) -> Optional[float]:
-        """Obtiene la componente de tensión continua de compensación vertical (offset).
+        """Consulta la tensión continua (offset) de compensación vertical del canal indicado.
 
         Returns:
             Optional[float]: Tensión continua de desplazamiento inyectada en :math:`\unit{\volt}`, 
@@ -428,18 +428,18 @@ class GWInstekGDS1000AU:
         pass
 
     def set_channel_offset(self, channel: int, offset: float) -> None:
-        """Ajusta el offset vertical del canal para centrar dinámicamente señales con continua.
+        """Configura la tensión continua (offset) de compensación vertical del canal indicado.
 
         Atrapa excepciones durante el envío de parámetros e invoca :meth:`close`.
 
         Args:
             channel (int): Identificador del canal (1 o 2).
-            offset (float): Tensión continua de inyección en :math:`\unit{\volt}`.
+            offset (float): Tensión continua de desplazamiento en :math:`\unit{\volt}`.
         """
         pass
 
     def get_channel_attenuation(self, channel: int) -> Optional[float]:
-        """Consulta el factor de atenuación preconfigurado (Probe Ratio) de la punta del canal.
+        """Consulta el multiplicador de escala interno (Probe Ratio) de la punta del canal.
 
         Returns:
             Optional[float]: Relación escalar de atenuación geométrica, o ``None`` tras capturar 
@@ -448,7 +448,7 @@ class GWInstekGDS1000AU:
         pass
 
     def set_channel_attenuation(self, channel: int, attenuation: float) -> None:
-        """Configura el multiplicador de escala interno (Probe Ratio) para acoplar lecturas SCPI.
+        """Configura el multiplicador de escala interno (Probe Ratio) de la punta del canal.
 
         Fuerza la desconexión segura (:meth:`close`) ante la imposibilidad de operar.
 
@@ -468,18 +468,18 @@ class GWInstekGDS1000AU:
         pass
 
     def set_channel_type(self, channel: int, ctype: int) -> None:
-        """Configura la unidad dimensional esperada en la entrada para escalar las lecturas.
+        """Configura la magnitud física asociada lógicamente a la punta de prueba del canal.
 
         Cualquier error capturado abortará la rutina pasando por :meth:`close`.
 
         Args:
             channel (int): Número de canal (1 o 2).
-            ctype (int): 0 para Voltaje (:math:`\unit{\volt}`), 1 para Amperaje (:math:`\unit{\ampere}`).
+            ctype (int): 0 para Tensión (:math:`\unit{\volt}`), 1 para Corriente (:math:`\unit{\ampere}`).
         """
         pass
 
     def set_single_trigger(self) -> None:
-        """Arma el mecanismo de disparo para ejecutar una captura transitoria única ('Single Shot').
+        """Configura el disparo del osciloscopio para capturar un único evento.
         
         Atrapa excepciones internamente invocando de forma automatizada a :meth:`close`.
         """

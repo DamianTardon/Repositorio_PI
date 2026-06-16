@@ -1,5 +1,3 @@
-# En caso de error de escritura, captura la excepción y ejecuta :meth:`close`.
-# En caso de error de lectura, captura la excepción y ejecuta :meth:`close`.
 """Módulo de interfaz de hardware para el osciloscopio GW Instek de la serie GDS-1000A-U.
 
 Este módulo encapsula todas las operaciones de control síncrono, configuración
@@ -10,11 +8,10 @@ from __future__ import annotations
 
 import time
 from struct import unpack
-import sys
 import pyvisa
 import numpy as np
 
-# Importaciones exclusivas para el tipado estático
+# Importaciones exclusivas para el tipado estático.
 from typing import Optional, Tuple, Union
 
 class GWInstekGDS1000AU:
@@ -49,18 +46,20 @@ class GWInstekGDS1000AU:
         self.dso = None
         self.rm = pyvisa.ResourceManager('@py')
 
-        instrument_list = self.rm.list_resources()
-        print("Instrumentos encontrados:", instrument_list)
-
-        if instrument_list:
-            self.connect(instrument_list[0])
+        try:
+            instrument_list = self.rm.list_resources()
+            print("Instrumentos encontrados:", instrument_list)
+            if instrument_list:
+                self.connect(instrument_list[0])
+        except Exception as e:
+            print("Error durante la inicialización del gestor VISA:", e)
 
     def connect(self, resource_name: str) -> None:
-        """Establece la conexión física y lógica con el osciloscopio especificado.
+        r"""Establece la conexión física y lógica con el osciloscopio especificado.
 
-        Configura los caracteres de terminación de línea (``\\n``) y consulta la 
-        identificación estándar (``*IDN?``). Si ocurre una excepción durante la conexión,
-        el error se captura y se fuerza un ciclo de cierre mediante :meth:`close`.
+        Configura los caracteres de terminación de línea (``\n``) y consulta la 
+        identificación estándar (``*IDN?``).
+        En caso de error en la comunicación, captura la excepción y ejecuta :meth:`close`.
 
         Args:
             resource_name (str): Cadena de texto de dirección del recurso VISA 
@@ -77,12 +76,12 @@ class GWInstekGDS1000AU:
             self.close()
 
     def get_block_data(self, channel: int) -> Tuple[Optional[bytes], Optional[np.ndarray], Optional[float]]:
-        """Adquiere el bloque binario completo de la forma de onda activa en la memoria del canal.
+        r"""Adquiere el bloque binario completo de la forma de onda activa en la memoria del canal.
 
         Gestiona el handshake SCPI comprobando el estado de captura y solicitando 
         el buffer de memoria. La lectura se particiona iterativamente en fragmentos 
         máximos de :math:`\qty{100000}{\byte}` para evitar desbordamientos del bus USB.
-        Ante cualquier excepción de E/S, captura el error, invoca a :meth:`close` y aborta.
+        En caso de error de lectura, captura la excepción, ejecuta :meth:`close` y aborta la captura devolviendo valores nulos.
 
         Args:
             channel (int): Identificador numérico del canal físico (1 o 2).
@@ -92,56 +91,18 @@ class GWInstekGDS1000AU:
                 - Buffer crudo de bytes (``inBuffer``).
                 - Vector de tensión de la onda en :math:`\unit{\volt}` (``waveform``).
                 - Periodo de muestreo temporal en :math:`\unit{\second}` (``dt``).
-                Si ocurre un error de hardware o la onda no está lista, retorna 
-                ``(None, None, None)``.
+                Si la onda no está lista en el instrumento o falla la comunicación,
+                retorna ``(None, None, None)``.
         """
-        try:
-            v_div = self.get_channel_scale(channel)
-            self.dso.write(f':acquire{channel}:state?')
-            state = self.dso.read()
-            if state[0] == '1':
-                time.sleep(0.1)
-                self.dso.write(f":acquire{channel}:memory?")
-
-                # Leer el encabezado inicial.
-                inBuffer = self.dso.read_bytes(10)
-                length = len(inBuffer)
-                headerlen = 2 + int(chr(inBuffer[1]))
-                pkg_length = int(inBuffer[2:headerlen]) + headerlen
-                pkg_length = pkg_length - length
-
-                while True:
-                    if pkg_length == 0:
-                        break
-                    else:
-                        if pkg_length > 100000:
-                            length = 100000
-                        else:
-                            length = pkg_length
-                        try:
-                            buf = self.dso.read_bytes(length)
-                        except:
-                            print('Error al recibir datos del instrumento!')
-                            self.close()
-                            sys.exit(0)
-
-                        num = len(buf)
-                        inBuffer += buf
-                        pkg_length = pkg_length - num
-                waveform, dt = self.unpack_waveform(inBuffer, headerlen, v_div)
-                return inBuffer, waveform, dt
-            else:
-                print('Error: Forma de onda aún no está lista.')
-                return None, None, None
-        except Exception as e:
-            print("Error al obtener datos:", e)
-            self.close()
+        if self.dso is None:
+            print("Error: No se puede obtener datos. El instrumento no está conectado.")
             return None, None, None
 
-    """
-    def get_block_data(self, channel):
         try:
             v_div = self.get_channel_scale(channel)
+            if v_div is None:
+                return None, None, None
+
             self.dso.write(f':acquire{channel}:state?')
             state = self.dso.read()
 
@@ -149,7 +110,7 @@ class GWInstekGDS1000AU:
                 time.sleep(0.1)
                 self.dso.write(f":acquire{channel}:memory?")
 
-                # Leer el encabezado inicial.
+                # Leer el encabezado inicial (10 bytes).
                 inBuffer = self.dso.read_bytes(10)
                 length = len(inBuffer)
                 headerlen = 2 + int(chr(inBuffer[1]))
@@ -163,8 +124,8 @@ class GWInstekGDS1000AU:
                     try:
                         buf = self.dso.read_bytes(chunk_size)
                     except Exception as e:
-                        print(f"Error crítico al recibir el bloque de datos: {e}")
-                        raise RuntimeError(f"Fallo en la transferencia USB/VISA. Bloque de datos perdido.")
+                        print(f"Error al recibir el bloque de datos: {e}")
+                        raise RuntimeError("Fallo en la transferencia USB/VISA. Bloque de datos perdido.")
 
                     inBuffer += buf
                     pkg_length -= len(buf)
@@ -172,57 +133,71 @@ class GWInstekGDS1000AU:
                 waveform, dt = self.unpack_waveform(inBuffer, headerlen, v_div)
                 return inBuffer, waveform, dt
             else:
-                print('Error: Forma de onda aún no está lista en el instrumento.')
+                print('Error: Forma de onda aún no está lista.')
                 return None, None, None
-
-        except RuntimeError as re:
-            # Capturar específicamente el error del bloque de datos perdido.
-            print(f"Abortando captura: {re}")
-            self.close() # Libera el dso y el ResourceManager.
-            return None, None, None
-
         except Exception as e:
-            # Capturar cualquier otro error de PyVISA o de conexión.
-            print(f"Error general en get_block_data: {e}")
-            # Devolver None para que la interfaz sepa que falló sin cerrarse.
+            print("Error al obtener datos:", e)
+            self.close()
             return None, None, None
-    """
-    def unpack_waveform(self, inBuffer: bytes, headerlen: int, vdiv: float) -> Tuple[np.ndarray, float]:
-        """Decodifica el buffer de bytes IEEE en vectores matemáticos de tensión y tiempo.
+
+    def unpack_waveform(self, inBuffer: bytes, headerlen: int, vdiv: float) -> Tuple[Optional[np.ndarray], Optional[float]]:
+        r"""Decodifica el buffer de bytes IEEE en vectores matemáticos de tensión y tiempo.
 
         Extrae el periodo de muestreo temporal (:math:`dt`) del encabezado flotante y convierte 
         los datos RAW de 16-bits a valores de tensión absoluta utilizando la constante 
         del conversor ADC.
+        Si ocurre un fallo en el desempaquetado o en el cálculo, captura 
+        la excepción y retorna un par de nulos.
 
         .. math::
-            V = RAW \cdot \frac{V_{div}}{ADC_{steps}}
+
+            V = \text{RAW} \cdot \frac{V_{\text{div}}}{\text{ADC}_{\text{steps}}}
 
         Args:
             inBuffer (bytes): Cadena de bytes en bruto descargada vía VISA.
             headerlen (int): Longitud dinámica calculada del encabezado SCPI de bloque.
-            vdiv (float): Escala vertical actual del canal en :math:`\unit{\volt/\text{div}}`.
+            vdiv (float): Escala vertical actual del canal en :math:`\unit{\volt\per\text{div}}`.
 
         Returns:
-            Tuple[np.ndarray, float]: Vector de tensión de la onda en :math:`\unit{\volt}` 
-            y el periodo de muestreo en :math:`\unit{\second}`.
+            Tuple[Optional[np.ndarray], Optional[float]]: Una tupla que contiene:
+                - waveform (Optional[np.ndarray]): Vector de tensión de la onda en :math:`\unit{\volt}`,
+                  o ``None`` si se produce un fallo durante la conversión.
+                - dt (Optional[float]): Periodo de muestreo temporal en :math:`\unit{\second}`,
+                  o ``None`` si se produce un fallo durante la conversión.
         """
-        print(inBuffer[:headerlen])
-        dt = unpack('>f', inBuffer[headerlen : headerlen + 4])[0]
-        print(f'Periodo de muestreo = {dt*1e9:.0f} [ns]')
-        waveform_raw = unpack('>%sh' % (int(len(inBuffer[headerlen + 8:]) / 2)), inBuffer[headerlen + 8:])
-        waveform_raw = np.array(waveform_raw)
-        num = len(waveform_raw)
-        print(f'Cantidad de muestras = {num}')
-        waveform = waveform_raw * vdiv / self.ADC_STEPS_PER_DIV
-        return waveform, dt
+        try:
+            print(inBuffer[:headerlen])
+
+            # Desempaquetado del periodo de muestreo dt (float de 4 bytes en Big-Endian)
+            dt = unpack('>f', inBuffer[headerlen : headerlen + 4])[0]
+            print(f'Periodo de muestreo = {dt*1e9:.0f} [ns]')
+
+            # Extracción del segmento binario de la señal de datos y conteo de muestras (short - 2 bytes)
+            raw_data = inBuffer[headerlen + 8:]
+            num_samples = int(len(raw_data) / 2)
+            print(f'Cantidad de muestras = {num_samples}')
+
+            # Desempaquetado dinámico del vector de muestras RAW
+            waveform_raw = unpack('>%sh' % num_samples, raw_data)
+            waveform_raw = np.array(waveform_raw)
+
+            # Escalamiento y normalización del vector binario a magnitudes físicas reales de tensión
+            waveform = waveform_raw * vdiv / self.ADC_STEPS_PER_DIV
+            return waveform, dt
+        except Exception as e:
+            print("Error de decodificación de datos binarios:", e)
+            return None, None
 
     def default_settings(self) -> None:
-        """Restablece los registros internos del osciloscopio a sus
-        valores de fábrica (``*RST``).
+        """Restablece los registros internos del osciloscopio a sus valores de fábrica (``*RST``).
         
-        En caso de error en la transmisión SCPI, captura la excepción
+        En caso de error en la comunicación, captura la excepción
         y ejecuta :meth:`close`.
         """
+        if self.dso is None:
+            print("Error: El instrumento no está conectado.")
+            return
+
         try:
             self.dso.write('*RST')
             print("Se restableció el instrumento a la configuración de fábrica exitosamente.")
@@ -230,30 +205,22 @@ class GWInstekGDS1000AU:
             print("Error al restablecer el instrumento:", e)
             self.close()
 
-    def get_setting(self) -> None:
-        """Consulta e imprime por consola la configuración actual del instrumento (``*LRN?``).
+    def get_channel_scale(self, channel: int) -> Optional[float]:
+        r"""Consulta la escala vertical configurada en un canal determinado.
 
         En caso de error de lectura, captura la excepción y ejecuta :meth:`close`.
-        """
-        try:
-            current_setting = self.dso.query('*LRN?')
-            print(f"Configuracion actual: {current_setting}")
-        except Exception as e:
-            print("Error al consultar configuración:", e)
-            self.close()
-
-    def get_channel_scale(self, channel: int) -> Optional[float]:
-        """Consulta la escala vertical configurada en un canal determinado.
-
-        Si se produce una excepción de hardware, se invoca a :meth:`close` y se aborta el retorno.
 
         Args:
             channel (int): Canal a consultar (1 o 2).
 
         Returns:
             Optional[float]: Valor de escala vertical en :math:`\unit{\volt/\text{div}}`, 
-            o ``None`` en caso de error de comunicación.
+            o ``None`` en caso de error.
         """
+        if self.dso is None:
+            print("Error: El instrumento no está conectado.")
+            return None
+
         try:
             scale = self.dso.query(f':channel{channel}:scale?')
             v_scale = float(scale)
@@ -262,9 +229,10 @@ class GWInstekGDS1000AU:
         except Exception as e:
             print("Error al obtener la escala vertical:", e)
             self.close()
+            return None
 
     def set_channel_scale(self, channel: int, value: float) -> None:
-        """Configura la escala vertical en el canal seleccionado.
+        r"""Configura la escala vertical en el canal seleccionado.
 
         En caso de error de escritura, captura la excepción y ejecuta :meth:`close`.
 
@@ -272,6 +240,10 @@ class GWInstekGDS1000AU:
             channel (int): Canal del osciloscopio a modificar (1 o 2).
             value (float): Tensión por división requerida en :math:`\unit{\volt/\text{div}}`.
         """
+        if self.dso is None:
+            print("Error: El instrumento no está conectado.")
+            return
+
         try:
             self.dso.write(f':channel{channel}:scale {value}')
             v_scale = self.get_channel_scale(channel)
@@ -284,14 +256,18 @@ class GWInstekGDS1000AU:
             self.close()
 
     def get_timebase_scale(self) -> Optional[float]:
-        """Consulta el valor de la base de tiempo horizontal.
+        r"""Consulta el valor de la base de tiempo horizontal.
 
-        Ante una falla de bus, se invoca a :meth:`close` automáticamente.
+        En caso de error de lectura, captura la excepción y ejecuta :meth:`close`.
 
         Returns:
             Optional[float]: Escala de tiempo en :math:`\unit{\second/\text{div}}`, 
             o ``None`` en caso de error.
         """
+        if self.dso is None:
+            print("Error: El instrumento no está conectado.")
+            return None
+
         try:
             scale = self.dso.query(':timebase:scale?')
             h_scale = float(scale)
@@ -300,15 +276,20 @@ class GWInstekGDS1000AU:
         except Exception as e:
             print("Error al obtener la escala horizontal:", e)
             self.close()
+            return None
 
     def set_timebase_scale(self, value: float) -> None:
-        """Configura la base de tiempo horizontal para la digitalización.
+        r"""Configura la base de tiempo horizontal para la digitalización.
 
         En caso de error de escritura, captura la excepción y ejecuta :meth:`close`.
 
         Args:
             value (float): Tiempo por división requerido en :math:`\unit{\second/\text{div}}`.
         """
+        if self.dso is None:
+            print("Error: El instrumento no está conectado.")
+            return
+
         try:
             self.dso.write(f':timebase:scale {value}')
             h_scale = self.get_timebase_scale()
@@ -321,13 +302,17 @@ class GWInstekGDS1000AU:
             self.close()
 
     def get_timebase_position(self) -> Optional[float]:
-        """Consulta la posición horizontal (delay) del punto de disparo en el eje temporal.
+        r"""Consulta la posición horizontal (delay) del punto de disparo en el eje temporal.
 
-        Captura internamente excepciones para forzar la liberación del instrumento con :meth:`close`.
+        En caso de error de lectura, captura la excepción y ejecuta :meth:`close`.
 
         Returns:
             Optional[float]: Desplazamiento temporal en :math:`\unit{\second}`, o ``None`` en caso de error.
         """
+        if self.dso is None:
+            print("Error: El instrumento no está conectado.")
+            return None
+
         try:
             position = float(self.dso.query(':timebase:delay?'))
             print(f'Posición horizontal: {position} [s]')
@@ -335,15 +320,20 @@ class GWInstekGDS1000AU:
         except Exception as e:
             print("Error al obtener la posición horizontal:", e)
             self.close()
+            return None
 
     def set_timebase_position(self, value: float) -> None:
-        """Configura la posición horizontal (delay) del punto de disparo en el eje temporal.
+        r"""Configura la posición horizontal (delay) del punto de disparo en el eje temporal.
 
         En caso de error de escritura, captura la excepción y ejecuta :meth:`close`.
 
         Args:
             value (float): Tiempo de retardo en :math:`\unit{\second}`.
         """
+        if self.dso is None:
+            print("Error: El instrumento no está conectado.")
+            return
+
         try:
             self.dso.write(f':timebase:delay {value}')
             position = self.get_timebase_position()
@@ -356,27 +346,37 @@ class GWInstekGDS1000AU:
             self.close()
 
     def get_trigger_level(self) -> Optional[float]:
-        """Consulta el umbral absoluto de tensión utilizado para la detección del flanco de disparo.
+        r"""Consulta el umbral absoluto de tensión utilizado para la detección del flanco de disparo.
+
+        En caso de error de lectura, captura la excepción y ejecuta :meth:`close`.
 
         Returns:
-            Optional[float]: Nivel de trigger en :math:`\unit{\volt}`, o ``None`` si se produce 
-            un error de hardware (activando :meth:`close`).
+            Optional[float]: Nivel de trigger en :math:`\unit{\volt}`, o ``None`` en caso de error.
         """
+        if self.dso is None:
+            print("Error: El instrumento no está conectado.")
+            return None
+
         try:
             level = float(self.dso.query(':trigger:level?'))
             return level
         except Exception as e:
             print("Error al obtener el nivel de disparo:", e)
             self.close()
+            return None
 
     def set_trigger_level(self, trigger_level: float) -> None:
-        """Configura el umbral absoluto de tensión de disparo.
+        r"""Configura el umbral absoluto de tensión de disparo.
 
         En caso de error de escritura, captura la excepción y ejecuta :meth:`close`.
 
         Args:
             trigger_level (float): Tensión requerida en :math:`\unit{\volt}`.
         """
+        if self.dso is None:
+            print("Error: El instrumento no está conectado.")
+            return
+
         try:
             self.dso.write(f':trigger:level {trigger_level}')
             if self.get_trigger_level() == trigger_level:
@@ -387,13 +387,300 @@ class GWInstekGDS1000AU:
             print("Error al configurar el nivel de disparo:", e)
             self.close()
 
+    def get_trigger_slope(self) -> Optional[str]:
+        """Consulta la polaridad de la pendiente (flanco) del disparo.
+
+        En caso de error de lectura, captura la excepción y ejecuta :meth:`close`.
+
+        Returns:
+            Optional[str]: Dirección de pendiente detectada ('Positivo' o 'Negativo'), o ``None`` en caso de error.
+        """
+        if self.dso is None:
+            print("Error: El instrumento no está conectado.")
+            return None
+
+        slopes = ('Positivo', 'Negativo')
+        try:
+            slope = self.dso.query(':trigger:slope?')
+            print(f'Flanco de trigger: {slopes[int(slope)]}')
+            return slopes[int(slope)]
+        except Exception as e:
+            print("Error al obtener el flanco de trigger:", e)
+            self.close()
+            return None
+
+    def set_trigger_slope(self, slope: int) -> None:
+        """Configura la polaridad de la pendiente (flanco) del disparo.
+
+        En caso de error de escritura, captura la excepción y ejecuta :meth:`close`.
+
+        Args:
+            slope (int): Dirección requerida: 0 para 'Positivo', 1 para 'Negativo'.
+        """
+        if self.dso is None:
+            print("Error: El instrumento no está conectado.")
+            return
+
+        slopes = ('Positivo', 'Negativo')
+        try:
+            self.dso.write(f':trigger:slope {slope}')
+            current_slope = self.get_trigger_slope()
+            if current_slope == slopes[slope]:
+                print(f'Flanco de trigger configurado a: {current_slope}')
+            else:
+                print('No se pudo configurar el flanco de trigger.')
+        except Exception as e:
+            print("Error al configurar el flanco de trigger:", e)
+            self.close()
+
+    def get_trigger_state(self) -> Optional[str]:
+        """Verifica si el osciloscopio capturó una señal.
+
+        En caso de error de lectura, captura la excepción y ejecuta :meth:`close`.
+
+        Returns:
+            Optional[str]: Estado síncrono de la captura ('No disparado' o 'Disparado'), 
+            o ``None`` en caso de error.
+        """
+        if self.dso is None:
+            print("Error: El instrumento no está conectado.")
+            return None
+
+        states = ('No disparado', 'Disparado')
+        try:
+            state = self.dso.query(':trigger:state?')
+            print(f'Estado de trigger: {states[int(state)]}')
+            return states[int(state)]
+        except Exception as e:
+            print("Error al obtener el estado de trigger:", e)
+            self.close()
+            return None
+
+    def get_channel_display(self, channel: int) -> Optional[str]:
+        """Consulta la visualización de un canal en pantalla.
+
+        En caso de error de lectura, captura la excepción y ejecuta :meth:`close`.
+
+        Args:
+            channel (int): Identificador del canal físico a consultar (1 o 2).
+
+        Returns:
+            Optional[str]: Estado de visualización ('OFF' u 'ON'), o ``None`` en caso de error.
+        """
+        if self.dso is None:
+            print("Error: El instrumento no está conectado.")
+            return None
+
+        states = ('OFF', 'ON')
+        try:
+            display = self.dso.query(f':channel{channel}:display?')
+            status = states[int(display)]
+            print(f'Canal {channel} está {status}')
+            return status
+        except Exception as e:
+            print("Error al obtener el estado de visualización del canal:", e)
+            self.close()
+            return None
+
+    def set_channel_display(self, channel: int, state: int) -> None:
+        """Configura la visualización de un canal en pantalla.
+
+        En caso de error de escritura, captura la excepción y ejecuta :meth:`close`.
+
+        Args:
+            channel (int): Canal a modificar (1 o 2).
+            state (int): Estado de visualización: 0 para apagar ('OFF'), 1 para encender ('ON').
+        """
+        if self.dso is None:
+            print("Error: El instrumento no está conectado.")
+            return
+
+        states = ('OFF', 'ON')
+        try:
+            self.dso.write(f':channel{channel}:display {state}')
+            current_state = self.get_channel_display(channel)
+            if current_state == states[int(state)]:
+                print(f'Canal {channel} configurado a: {current_state}')
+            else:
+                print('No se pudo configurar el estado de visualización del canal.')
+        except Exception as e:
+            print("Error al configurar el estado de visualización del canal:", e)
+            self.close()
+
+    def get_channel_offset(self, channel: int) -> Optional[float]:
+        r"""Consulta la tensión continua (offset) de compensación vertical del canal indicado.
+
+        En caso de error de lectura, captura la excepción y ejecuta :meth:`close`.
+
+        Args:
+            channel (int): Identificador del canal físico a consultar (1 o 2).
+
+        Returns:
+            Optional[float]: Tensión continua de desplazamiento inyectada en :math:`\unit{\volt}`, 
+            o ``None`` en caso de error.
+        """
+        if self.dso is None:
+            print("Error: El instrumento no está conectado.")
+            return None
+
+        try:
+            offset = float(self.dso.query(f':channel{channel}:offset?'))
+            print(f'Offset del canal {channel}: {offset} [V]')
+            return offset
+        except Exception as e:
+            print("Error al obtener el offset del canal:", e)
+            self.close()
+            return None
+
+    def set_channel_offset(self, channel: int, offset: float) -> None:
+        r"""Configura la tensión continua (offset) de compensación vertical del canal indicado.
+
+        En caso de error de escritura, captura la excepción y ejecuta :meth:`close`.
+
+        Args:
+            channel (int): Identificador del canal (1 o 2).
+            offset (float): Tensión continua de desplazamiento en :math:`\unit{\volt}`.
+        """
+        if self.dso is None:
+            print("Error: El instrumento no está conectado.")
+            return
+
+        try:
+            self.dso.write(f':channel{channel}:offset {offset}')
+            current_offset = self.get_channel_offset(channel)
+            if current_offset == offset:
+                print(f'Offset del canal {channel} configurado a: {current_offset} [V]')
+            else:
+                print('No se pudo configurar el offset del canal.')
+        except Exception as e:
+            print("Error al configurar el offset del canal:", e)
+            self.close()
+
+    def set_single_trigger(self) -> None:
+        """Configura el disparo del osciloscopio para capturar un único evento.
+        
+        En caso de error de escritura, captura la excepción y ejecuta :meth:`close`.
+        """
+        if self.dso is None:
+            print("Error: El instrumento no está conectado.")
+            return
+
+        try:
+            self.dso.write(':single')
+            print("Disparo único configurado exitosamente.")
+        except Exception as e:
+            print("Error al configurar el disparo único:", e)
+            self.close()
+
+    def close(self) -> None:
+        """Termina y libera de manera ordenada la interfaz de conexión VISA y el ResourceManager.
+
+        Este método actúa principalmente como un mecanismo interno de seguridad (failsafe)
+        que se ejecuta automáticamente al capturar excepciones de comunicación. También
+        puede ser invocado por capas superiores de la aplicación (ej. interfaces gráficas)
+        para limpiar sesiones previas o abortadas antes de intentar una reconexión.
+        """
+        if self.dso is not None:
+            try:
+                self.dso.close()
+                print("Conexión con el instrumento cerrada exitosamente.")
+            except Exception as e:
+                print("Error al cerrar la conexión con el instrumento:", e)
+            finally:
+                self.dso = None
+
+        if hasattr(self, 'rm') and self.rm is not None:
+            try:
+                self.rm.close()
+                print("Gestor de recursos cerrado exitosamente.")
+            except Exception as e:
+                print("Error al cerrar el gestor de recursos:", e)
+            finally:
+                self.rm = None
+
+    def __del__(self) -> None:
+        """Destructor síncrono que garantiza la liberación de descriptores de hardware del SO invocando :meth:`close`.
+
+        Asegura que los recursos se liberen cuando el objeto es destruido.
+        """
+        self.close()
+
+    @staticmethod
+    def process_multipliers(value: Union[str, float], unit: str) -> Optional[float]:
+        """Procesa y convierte valores numéricos con prefijos del Sistema Internacional (SI) de unidades.
+
+        Aplica factores de escala de manera agnóstica para transformar a unidades base (Voltios o Segundos).
+        Si la unidad introducida no es reconocida, asume automáticamente un multiplicador base de ``1.0``.
+        Soporta de manera consistente los submúltiplos de micro tanto en formato ASCII ("u") como
+        en su codificación formal UTF-8 ("µ").
+
+        Args:
+            value (Union[str, float]): Magnitud numérica escalar (texto numérico o primitivo flotante).
+            unit (str): Símbolo del submúltiplo físico ('V', 'mV', 'uV', 'µV', 's', 'ms', 'us', 'µs', 'ns').
+
+        Returns:
+            Optional[float]: Valor absoluto escalado a la unidad fundamental del SI, o 
+            ``None`` si el valor ingresado es inválido.
+        """
+        multipliers = {
+            "V": 1.0,        # Volt.
+            "mV": 1e-3,      # Milivolt.
+            "uV": 1e-6,      # Microvolt (ASCII).
+            "µV": 1e-6,      # Microvolt (SI/UTF-8).
+            "s": 1.0,        # Segundo.
+            "ms": 1e-3,      # Milisegundo.
+            "us": 1e-6,      # Microsegundo (ASCII).
+            "µs": 1e-6,      # Microsegundo (SI/UTF-8).
+            "ns": 1e-9       # Nanosegundo.
+        }
+
+        try:
+            numerical_value = float(value)
+            factor = multipliers.get(unit, 1.0)
+            scale = numerical_value * factor
+            
+            print(f"El parámetro final generado es: {scale}")
+            return scale
+
+        except ValueError:
+            # Por si el usuario dejó el campo en blanco o no es un número.
+            print("Esperando un número válido en la lista...")
+            return None
+
+# =============================================================================
+# UNUSED / RESERVED METHODS
+# =============================================================================
+# Los siguientes métodos no se acoplan a la lógica principal actualmente,
+# pero se preservan para futuras extensiones del sistema de adquisición.
+
+    def get_setting(self) -> None:
+        """Consulta e imprime por consola la configuración actual del instrumento (``*LRN?``).
+
+        En caso de error de lectura, captura la excepción y ejecuta :meth:`close`.
+        """
+        if self.dso is None:
+            print("Error: El instrumento no está conectado.")
+            return
+
+        try:
+            current_setting = self.dso.query('*LRN?')
+            print(f"Configuracion actual: {current_setting}")
+        except Exception as e:
+            print("Error al consultar configuración:", e)
+            self.close()
+
     def get_trigger_coupling(self) -> Optional[str]:
         """Consulta el acoplamiento eléctrico del circuito del trigger.
 
+        En caso de error de lectura, captura la excepción y ejecuta :meth:`close`.
+
         Returns:
-            Optional[str]: Modo de acoplamiento analógico detectado ('AC' o 'DC'), o ``None`` 
-            en caso de error (con invocación a :meth:`close`).
+            Optional[str]: Modo de acoplamiento analógico detectado ('AC' o 'DC'), o ``None`` en caso de error.
         """
+        if self.dso is None:
+            print("Error: El instrumento no está conectado.")
+            return None
+
         couplings = ('AC', 'DC')
         try:
             coupling = self.dso.query(':trigger:couple?')
@@ -402,6 +689,7 @@ class GWInstekGDS1000AU:
         except Exception as e:
             print("Error al obtener el acoplamiento de trigger:", e)
             self.close()
+            return None
 
     def set_trigger_coupling(self, coupling: int) -> None:
         """Configura el acoplamiento eléctrico del circuito del trigger.
@@ -411,6 +699,10 @@ class GWInstekGDS1000AU:
         Args:
             coupling (int): Índice de modo: 0 para 'AC', 1 para 'DC'.
         """
+        if self.dso is None:
+            print("Error: El instrumento no está conectado.")
+            return
+
         couplings = ('AC', 'DC')
         try:
             self.dso.write(f':trigger:couple {coupling}')
@@ -426,10 +718,15 @@ class GWInstekGDS1000AU:
     def get_trigger_mode(self) -> Optional[str]:
         """Consulta el modo de actualización del trigger.
 
+        En caso de error de lectura, captura la excepción y ejecuta :meth:`close`.
+
         Returns:
-            Optional[str]: Cadena descriptiva del modo ('Auto' o 'Normal'), o ``None`` 
-            si falla el dispositivo (activando :meth:`close`).
+            Optional[str]: Cadena descriptiva del modo ('Auto' o 'Normal'), o ``None`` en caso de error.
         """
+        if self.dso is None:
+            print("Error: El instrumento no está conectado.")
+            return None
+
         modes = ('Auto', 'Normal')
         try:
             mode = self.dso.query(':trigger:mode?')
@@ -438,6 +735,7 @@ class GWInstekGDS1000AU:
         except Exception as e:
             print("Error al obtener el modo de trigger:", e)
             self.close()
+            return None
 
     def set_trigger_mode(self, mode: int) -> None:
         """Configura el modo actualización del trigger.
@@ -447,6 +745,10 @@ class GWInstekGDS1000AU:
         Args:
             mode (int): Índice de selección: 0 para 'Auto', 1 para 'Normal'.
         """
+        if self.dso is None:
+            print("Error: El instrumento no está conectado.")
+            return
+
         modes = ('Auto', 'Normal')
         try:
             self.dso.write(f':trigger:mode {mode+1}')
@@ -462,10 +764,15 @@ class GWInstekGDS1000AU:
     def get_trigger_nrej(self) -> Optional[str]:
         """Consulta el estado del circuito de rechazo de ruido acoplado al trigger.
 
+        En caso de error de lectura, captura la excepción y ejecuta :meth:`close`.
+
         Returns:
-            Optional[str]: Estado de conmutación ('OFF' o 'ON'), o ``None`` ante fallos 
-            (forzando :meth:`close`).
+            Optional[str]: Estado de conmutación ('OFF' o 'ON'), o ``None`` en caso de error.
         """
+        if self.dso is None:
+            print("Error: El instrumento no está conectado.")
+            return None
+
         states = ('OFF', 'ON')
         try:
             nrej = self.dso.query(':trigger:nrej?')
@@ -475,6 +782,7 @@ class GWInstekGDS1000AU:
         except Exception as e:
             print("Error al obtener el estado de rechazo de ruido de trigger:", e)
             self.close()
+            return None
 
     def set_trigger_nrej(self, state: int) -> None:
         """Habilita o deshabilita el circuito de rechazo de ruido acoplado al trigger.
@@ -484,6 +792,10 @@ class GWInstekGDS1000AU:
         Args:
             state (int): 0 para apagar ('OFF'), 1 para encender ('ON').
         """
+        if self.dso is None:
+            print("Error: El instrumento no está conectado.")
+            return
+
         states = ('OFF', 'ON')
         try:
             self.dso.write(f':trigger:nrej {state}')
@@ -499,10 +811,15 @@ class GWInstekGDS1000AU:
     def get_trigger_reject(self) -> Optional[str]:
         """Consulta el tipo de filtro de frecuencia acoplado al trigger.
 
+        En caso de error de lectura, captura la excepción y ejecuta :meth:`close`.
+
         Returns:
-            Optional[str]: Modo de filtrado ('OFF', 'LF', 'HF'), o ``None`` si falla la 
-            lectura e invoca :meth:`close`.
+            Optional[str]: Modo de filtrado ('OFF', 'LF', 'HF'), o ``None`` en caso de error.
         """
+        if self.dso is None:
+            print("Error: El instrumento no está conectado.")
+            return None
+
         modes = ('OFF', 'LF', 'HF')
         try:
             rej = self.dso.query(':trigger:reject?')
@@ -511,6 +828,7 @@ class GWInstekGDS1000AU:
         except Exception as e:
             print("Error al obtener el filtro de ruido de trigger:", e)
             self.close()
+            return None
 
     def set_trigger_reject(self, mode: int) -> None:
         """Configura el tipo de filtro de frecuencia acoplado al trigger.
@@ -521,6 +839,10 @@ class GWInstekGDS1000AU:
             mode (int): Selector numérico: 0 para 'OFF', 1 para baja frecuencia ('LF'), 
                 2 para alta frecuencia ('HF').
         """
+        if self.dso is None:
+            print("Error: El instrumento no está conectado.")
+            return
+
         modes = ('OFF', 'LF', 'HF')
         try:
             self.dso.write(f':trigger:reject {mode}')
@@ -533,65 +855,19 @@ class GWInstekGDS1000AU:
             print("Error al configurar el filtro de ruido de trigger:", e)
             self.close()
 
-    def get_trigger_slope(self) -> Optional[str]:
-        """Consulta la polaridad de la pendiente (flanco) del disparo.
-
-        Returns:
-            Optional[str]: Dirección de pendiente detectada ('Positivo' o 'Negativo'), o ``None`` 
-            ante fallos operacionales.
-        """
-        slopes = ('Positivo', 'Negativo')
-        try:
-            slope = self.dso.query(':trigger:slope?')
-            print(f'Flanco de trigger: {slopes[int(slope)]}')
-            return slopes[int(slope)]
-        except Exception as e:
-            print("Error al obtener el flanco de trigger:", e)
-            self.close()
-
-    def set_trigger_slope(self, slope: int) -> None:
-        """Configura la polaridad de la pendiente (flanco) del disparo.
-
-        En caso de error de escritura, captura la excepción y ejecuta :meth:`close`.
-
-        Args:
-            slope (int): Dirección requerida: 0 para 'Positivo', 1 para 'Negativo'.
-        """
-        slopes = ('Positivo', 'Negativo')
-        try:
-            self.dso.write(f':trigger:slope {slope}')
-            current_slope = self.get_trigger_slope()
-            if current_slope == slopes[slope]:
-                print(f'Flanco de trigger configurado a: {current_slope}')
-            else:
-                print('No se pudo configurar el flanco de trigger.')
-        except Exception as e:
-            print("Error al configurar el flanco de trigger:", e)
-            self.close()
-
-    def get_trigger_state(self) -> Optional[str]:
-        """Verifica en si el osciloscopio capturó una señal.
-
-        Returns:
-            Optional[str]: Estado síncrono de la captura ('No disparado' o 'Disparado'), 
-            o ``None`` si se pierde la conexión y se fuerza el :meth:`close`.
-        """
-        states = ('No disparado', 'Disparado')
-        try:
-            state = self.dso.query(':trigger:state?')
-            print(f'Estado de trigger: {states[int(state)]}')
-            return states[int(state)]
-        except Exception as e:
-            print("Error al obtener el estado de trigger:", e)
-            self.close()
-
     def get_trigger_source(self) -> Optional[str]:
         """Consulta cuál es la señal de referencia acoplada al trigger.
 
+        En caso de error de lectura, captura la excepción y ejecuta :meth:`close`.
+
         Returns:
             Optional[str]: Identificador de fuente ('Canal 1', 'Canal 2', 
-            'Externo', 'Red'), o ``None`` en caso de excepción manejada.
+            'Externo', 'Red'), o ``None`` en caso de error.
         """
+        if self.dso is None:
+            print("Error: El instrumento no está conectado.")
+            return None
+
         sources = ('Canal 1', 'Canal 2', 'Externo', 'Red')
         try:
             source = self.dso.query(':trigger:source?')
@@ -600,6 +876,7 @@ class GWInstekGDS1000AU:
         except Exception as e:
             print("Error al obtener la fuente de trigger:", e)
             self.close()
+            return None
 
     def set_trigger_source(self, source: int) -> None:
         """Configura la señal de referencia acoplada al trigger.
@@ -610,6 +887,10 @@ class GWInstekGDS1000AU:
             source (int): Código de mapeo: 0 para 'Canal 1', 1 para 'Canal 2', 
                 2 para 'Externo', 3 para 'Red'.
         """
+        if self.dso is None:
+            print("Error: El instrumento no está conectado.")
+            return
+
         sources = ('Canal 1', 'Canal 2', 'Externo', 'Red')
         try:
             self.dso.write(f':trigger:source {source}')
@@ -625,10 +906,16 @@ class GWInstekGDS1000AU:
     def get_trigger_type(self) -> Optional[str]:
         """Consulta el tipo de evento disparador del osciloscopio.
 
+        En caso de error de lectura, captura la excepción y ejecuta :meth:`close`.
+
         Returns:
             Optional[str]: Descriptor del modo de trigger ('Edge', 'Video', 'Pulse'), 
-            o ``None`` tras capturar una excepción de lectura.
+            o ``None`` en caso de error.
         """
+        if self.dso is None:
+            print("Error: El instrumento no está conectado.")
+            return None
+
         types = ('Edge', 'Video', 'Pulse')
         try:
             ttype = self.dso.query(':trigger:type?')
@@ -637,6 +924,7 @@ class GWInstekGDS1000AU:
         except Exception as e:
             print("Error al obtener el tipo de trigger:", e)
             self.close()
+            return None
 
     def set_trigger_type(self, ttype: int) -> None:
         """Configura el tipo de evento disparador del osciloscopio.
@@ -646,6 +934,10 @@ class GWInstekGDS1000AU:
         Args:
             ttype (int): Selector de tipo: 0 para 'Edge', 1 para 'Video', 2 para 'Pulse'.
         """
+        if self.dso is None:
+            print("Error: El instrumento no está conectado.")
+            return
+
         types = ('Edge', 'Video', 'Pulse')
         try:
             self.dso.write(f':trigger:type {ttype}')
@@ -661,10 +953,16 @@ class GWInstekGDS1000AU:
     def get_acquire_mode(self) -> Optional[str]:
         """Consulta el modo de adquisición algorítmica del osciloscopio.
 
+        En caso de error de lectura, captura la excepción y ejecuta :meth:`close`.
+
         Returns:
             Optional[str]: Descriptor de adquisición ('Normal', 'Peak detect', 'Average'), 
-            o ``None`` tras fallar de forma segura en :meth:`close`.
+            o ``None`` en caso de error.
         """
+        if self.dso is None:
+            print("Error: El instrumento no está conectado.")
+            return None
+
         modes = ('Normal', 'Peak detect', 'Average')
         try:
             mode = self.dso.query(':acquire:mode?')
@@ -673,6 +971,7 @@ class GWInstekGDS1000AU:
         except Exception as e:
             print("Error al obtener el modo de adquisición:", e)
             self.close()
+            return None
 
     def set_acquire_mode(self, mode: int) -> None:
         """Configura el modo de adquisición algorítmica del osciloscopio.
@@ -683,6 +982,10 @@ class GWInstekGDS1000AU:
             mode (int): Constante de conmutación: 0 para 'Normal', 1 para 'Peak detect', 
                 2 para 'Average'.
         """
+        if self.dso is None:
+            print("Error: El instrumento no está conectado.")
+            return
+
         modes = ('Normal', 'Peak detect', 'Average')
         try:
             self.dso.write(f':acquire:mode {mode}')
@@ -698,10 +1001,18 @@ class GWInstekGDS1000AU:
     def get_channel_coupling(self, channel: int) -> Optional[str]:
         """Consulta el tipo de acoplamiento galvánico de entrada del canal de entrada.
 
+        En caso de error de lectura, captura la excepción y ejecuta :meth:`close`.
+
+        Args:
+            channel (int): Identificador del canal físico a consultar (1 o 2).
+
         Returns:
-            Optional[str]: Estado de acoplamiento de entrada ('AC', 'DC', 'GND'), o ``None`` 
-            ante fallas del bus manejadas por :meth:`close`.
+            Optional[str]: Estado de acoplamiento de entrada ('AC', 'DC', 'GND'), o ``None`` en caso de error.
         """
+        if self.dso is None:
+            print("Error: El instrumento no está conectado.")
+            return None
+
         couplings = ('AC', 'DC', 'GND')
         try:
             coupling = self.dso.query(f':channel{channel}:coupling?')
@@ -710,6 +1021,7 @@ class GWInstekGDS1000AU:
         except Exception as e:
             print("Error al obtener el acoplamiento del canal:", e)
             self.close()
+            return None
 
     def set_channel_coupling(self, channel: int, coupling: int) -> None:
         """Configura el tipo de acoplamiento galvánico de entrada del canal de entrada.
@@ -720,6 +1032,10 @@ class GWInstekGDS1000AU:
             channel (int): Identificador del canal del osciloscopio (1 o 2).
             coupling (int): Constante de modo: 0 para 'AC', 1 para 'DC', 2 para 'GND'.
         """
+        if self.dso is None:
+            print("Error: El instrumento no está conectado.")
+            return
+
         couplings = ('AC', 'DC', 'GND')
         try:
             self.dso.write(f':channel{channel}:coupling {coupling}')
@@ -732,121 +1048,21 @@ class GWInstekGDS1000AU:
             print("Error al configurar el acoplamiento del canal:", e)
             self.close()
 
-    def get_channel_display(self, channel: int) -> Optional[str]:
-        """Consulta la visualización de un canal en pantalla.
-
-        Returns:
-            Optional[str]: Estado de visualización ('OFF' u 'ON'), o ``None`` si se desencadena 
-            el protocolo de :meth:`close` por errores SCPI.
-        """
-        states = ('OFF', 'ON')
-        try:
-            display = self.dso.query(f':channel{channel}:display?')
-            status = states[int(display)]
-            print(f'Canal {channel} está {status}')
-            return status
-        except Exception as e:
-            print("Error al obtener el estado de visualización del canal:", e)
-            self.close()
-
-    def set_channel_display(self, channel: int, state: int) -> None:
-        """Configura la visualización de un canal en pantalla.
-
-        En caso de error de escritura, captura la excepción y ejecuta :meth:`close`.
-
-        Args:
-            channel (int): Canal a modificar (1 o 2).
-            state (int): Estado de visualización: 0 para apagar ('OFF'), 1 para encender ('ON').
-        """
-        states = ('OFF', 'ON')
-        try:
-            self.dso.write(f':channel{channel}:display {state}')
-            current_state = self.get_channel_display(channel)
-            if current_state == states[int(state)]:
-                print(f'Canal {channel} configurado a: {current_state}')
-            else:
-                print('No se pudo configurar el estado de visualización del canal.')
-        except Exception as e:
-            print("Error al configurar el estado de visualización del canal:", e)
-            self.close()
-
-    def get_channel_offset(self, channel: int) -> Optional[float]:
-        """Consulta la tensión continua (offset) de compensación vertical del canal indicado.
-
-        Returns:
-            Optional[float]: Tensión continua de desplazamiento inyectada en :math:`\unit{\volt}`, 
-            o ``None`` si el método atrapa una excepción y libera los recursos.
-        """
-        try:
-            offset = float(self.dso.query(f':channel{channel}:offset?'))
-            print(f'Offset del canal {channel}: {offset} [V]')
-            return offset
-        except Exception as e:
-            print("Error al obtener el offset del canal:", e)
-            self.close()
-
-    def set_channel_offset(self, channel: int, offset: float) -> None:
-        """Configura la tensión continua (offset) de compensación vertical del canal indicado.
-
-        En caso de error de escritura, captura la excepción y ejecuta :meth:`close`.
-
-        Args:
-            channel (int): Identificador del canal (1 o 2).
-            offset (float): Tensión continua de desplazamiento en :math:`\unit{\volt}`.
-        """
-        try:
-            self.dso.write(f':channel{channel}:offset {offset}')
-            current_offset = self.get_channel_offset(channel)
-            if current_offset == offset:
-                print(f'Offset del canal {channel} configurado a: {current_offset} [V]')
-            else:
-                print('No se pudo configurar el offset del canal.')
-        except Exception as e:
-            print("Error al configurar el offset del canal:", e)
-            self.close()
-
-    def get_channel_attenuation(self, channel: int) -> Optional[float]:
-        """Consulta el multiplicador de escala interno (Probe Ratio) de la punta del canal.
-
-        Returns:
-            Optional[float]: Relación escalar de atenuación geométrica, o ``None`` tras capturar 
-            una excepción de hardware.
-        """
-        try:
-            attenuation = float(self.dso.query(f':channel{channel}:probe:ratio?'))
-            print(f'Factor de atenuación del canal {channel}: {attenuation}')
-            return attenuation
-        except Exception as e:
-            print("Error al obtener el factor de atenuación del canal:", e)
-            self.close()
-
-    def set_channel_attenuation(self, channel: int, attenuation: float) -> None:
-        """Configura el multiplicador de escala interno (Probe Ratio) de la punta del canal.
-
-        En caso de error de escritura, captura la excepción y ejecuta :meth:`close`.
-
-        Args:
-            channel (int): Número de canal (1 o 2).
-            attenuation (float): Factor numérico nominal (ej. 10.0 para punta x10).
-        """
-        try:
-            self.dso.write(f':channel{channel}:probe:ratio {attenuation}')
-            current_attenuation = self.get_channel_attenuation(channel)
-            if current_attenuation == attenuation:
-                print(f'Factor de atenuación del canal {channel} configurado a: {current_attenuation}')
-            else:
-                print('No se pudo configurar el factor de atenuación del canal.')
-        except Exception as e:
-            print("Error al configurar el factor de atenuación del canal:", e)
-            self.close()
-
     def get_channel_type(self, channel: int) -> Optional[str]:
         """Consulta la magnitud física asociada lógicamente a la punta de prueba del canal.
 
+        En caso de error de lectura, captura la excepción y ejecuta :meth:`close`.
+
+        Args:
+            channel (int): Identificador del canal físico a consultar (1 o 2).
+
         Returns:
-            Optional[str]: Descripción física de la magnitud ('Tensión' o 'Corriente'), o ``None`` 
-            si se pierde la comunicación manejada.
+            Optional[str]: Descripción física de la magnitud ('Tensión' o 'Corriente'), o ``None`` en caso de error.
         """
+        if self.dso is None:
+            print("Error: El instrumento no está conectado.")
+            return None
+
         types = ('Tensión', 'Corriente')
         try:
             ctype = self.dso.query(f':channel{channel}:probe:type?')
@@ -855,9 +1071,10 @@ class GWInstekGDS1000AU:
         except Exception as e:
             print("Error al obtener el tipo de prueba del canal:", e)
             self.close()
+            return None
 
     def set_channel_type(self, channel: int, ctype: int) -> None:
-        """Configura la magnitud física asociada lógicamente a la punta de prueba del canal.
+        r"""Configura la magnitud física asociada lógicamente a la punta de prueba del canal.
 
         En caso de error de escritura, captura la excepción y ejecuta :meth:`close`.
 
@@ -865,6 +1082,10 @@ class GWInstekGDS1000AU:
             channel (int): Número de canal (1 o 2).
             ctype (int): 0 para Tensión (:math:`\unit{\volt}`), 1 para Corriente (:math:`\unit{\ampere}`).
         """
+        if self.dso is None:
+            print("Error: El instrumento no está conectado.")
+            return
+
         types = ('Tensión', 'Corriente')
         try:
             self.dso.write(f':channel{channel}:probe:type {ctype}')
@@ -877,82 +1098,50 @@ class GWInstekGDS1000AU:
             print("Error al configurar el tipo de prueba del canal:", e)
             self.close()
 
-    def set_single_trigger(self) -> None:
-        """Configura el disparo del osciloscopio para capturar un único evento.
-        
-        En caso de error de escritura, captura la excepción y ejecuta :meth:`close`.
-        """
-        try:
-            self.dso.write(':single')
-            print("Disparo único configurado exitosamente.")
-        except Exception as e:
-            print("Error al configurar el disparo único:", e)
-            self.close()
+    def get_channel_attenuation(self, channel: int) -> Optional[float]:
+        """Consulta el multiplicador de escala interno (Probe Ratio) de la punta del canal.
 
-    def close(self) -> None:
-        """Termina y libera de manera ordenada la interfaz de conexión VISA y el ResourceManager.
-        
-        Este método es invocado explícitamente por el usuario para cerrar el instrumento, 
-        o internamente por el propio controlador como método de seguridad (failsafe) cuando 
-        se atrapan excepciones no controladas.
-        """
-        if self.dso:
-            try:
-                self.dso.close()
-                print("Conexión con el instrumento cerrada exitosamente.")
-            except Exception as e:
-                print("Error al cerrar la conexión con el instrumento:", e)
-            finally:
-                self.dso = None
-        if hasattr(self, 'rm') and self.rm is not None:
-            try:
-                self.rm.close()
-                print("Gestor de recursos cerrado exitosamente.")
-            except Exception as e:
-                print("Error al cerrar el gestor de recursos:", e)
-
-    def __del__(self) -> None:
-        """Destructor síncrono que garantiza la liberación de descriptores de hardware del SO invocando :meth:`close`.
-        
-        Asegura que los recursos se liberen cuando el objeto es destruido.
-        """
-        self.close()
-
-    #----------------------------------------------------------------------------------------------
-    @staticmethod
-    def process_multipliers(value: Union[str, float], unit: str) -> Optional[float]:
-        """Procesa y convierte valores numéricos con prefijos del Sistema Internacional (SI) de unidades.
-
-        Aplica factores de escala de manera agnóstica para transformar a unidades base (Voltios o Segundos).
-        Si la unidad introducida no es reconocida, asume automáticamente un multiplicador base de ``1.0``.
+        En caso de error de lectura, captura la excepción y ejecuta :meth:`close`.
 
         Args:
-            value (Union[str, float]): Magnitud numérica escalar (texto numérico o primitivo flotante).
-            unit (str): Símbolo del submúltiplo físico ('V', 'mV', 'uV', 's', 'ms', 'µs', 'ns').
+            channel (int): Identificador del canal físico a consultar (1 o 2).
 
         Returns:
-            Optional[float]: Valor absoluto escalado a la unidad fundamental del SI, o 
-            ``None`` si el valor ingresado carece de validez numérica.
+            Optional[float]: Relación escalar de atenuación geométrica, o ``None`` en caso de error.
         """
-        multipliers = {
-            "V": 1.0,        # Volt.
-            "mV": 1e-3,      # Milivolt.
-            "uV": 1e-6,      # Microvolt.
-            "s": 1.0,        # Segundo.
-            "ms": 1e-3,      # Milisegundo.
-            "µs": 1e-6,      # Microsegundo.
-            "ns": 1e-9       # Nanosegundo.
-        }
-        
-        try:
-            numerical_value = float(value)
-            factor = multipliers.get(unit, 1.0)
-            scale = numerical_value * factor
-            
-            print(f"El parámetro final generado es: {scale}")
-            return scale
-
-        except ValueError:
-            # Por si el usuario dejó el combo_valor en blanco o no es un número.
-            print("Esperando un número válido en la lista...")
+        if self.dso is None:
+            print("Error: El instrumento no está conectado.")
             return None
+
+        try:
+            attenuation = float(self.dso.query(f':channel{channel}:probe:ratio?'))
+            print(f'Factor de atenuación del canal {channel}: {attenuation}')
+            return attenuation
+        except Exception as e:
+            print("Error al obtener el factor de atenuación del canal:", e)
+            self.close()
+            return None
+
+    def set_channel_attenuation(self, channel: int, attenuation: float) -> None:
+        """Configura el multiplicador de escala interno (Probe Ratio) de la punta del canal.
+
+        En caso de error de escritura, captura la excepción y ejecuta :meth:`close`.
+
+        Args:
+            channel (int): Número de canal (1 o 2).
+            attenuation (float): Factor de atenuación de la punta (ej. 10.0 para punta x10).
+        """
+        if self.dso is None:
+            print("Error: El instrumento no está conectado.")
+            return
+
+        try:
+            self.dso.write(f':channel{channel}:probe:ratio {attenuation}')
+            current_attenuation = self.get_channel_attenuation(channel)
+            if current_attenuation == attenuation:
+                print(f'Factor de atenuación del canal {channel} configurado a: {current_attenuation}')
+            else:
+                print('No se pudo configurar el factor de atenuación del canal.')
+        except Exception as e:
+            print("Error al configurar el factor de atenuación del canal:", e)
+            self.close()

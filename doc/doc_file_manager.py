@@ -60,7 +60,8 @@ class FileManager:
     def get_new_filename(self, filename: str, extension: str) -> Path:
         """Construye una ruta absoluta asignando el archivo a la subcarpeta correcta según su formato.
 
-        Asegura que el nombre contenga la extensión solicitada y rutea dinámicamente:
+        Asegura que el nombre contenga la extensión solicitada (añadiéndola 
+        automáticamente si el usuario la omitió) y rutea el fichero dinámicamente:
             - ``.csv``: Se rutea a la carpeta de copias crudas (``self.raw``).
             - ``.h5``: Se rutea a la carpeta de bases de datos (``self.analysis``).
             - ``.png``, ``.pdf``: Se rutean a la carpeta de informes visuales (``self.results``).

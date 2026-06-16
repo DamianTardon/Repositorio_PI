@@ -31,12 +31,12 @@ class GWInstekGDS1000AU:
 
     Attributes:
         ADC_STEPS_PER_DIV (float): Constante de cuantización vertical del conversor ADC, 
-            específica de la serie GW Instek GDS-1000A-U (25.0 puntos por división).
+            específica de la serie GW Instek GDS-1000A-U (:math:`\num{25.0}` pasos por división).
         rm (pyvisa.ResourceManager): Gestor global de recursos de la plataforma VISA (backend '@py').
         dso (Optional[pyvisa.resources.Resource]): Instancia del objeto VISA que representa al instrumento activo.
     """
 
-    #: Constante de cuantización vertical del ADC.
+    #: Constante de cuantización vertical del ADC de la serie GW Instek GDS 1000AU.
     ADC_STEPS_PER_DIV: float = 25.0
 
     def __init__(self) -> None:

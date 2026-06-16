@@ -1,4 +1,4 @@
-"""Punto de entrada principal para el software de metrología de impulsos atmosféricos de alta tensión.
+r"""Punto de entrada principal para el software de metrología de impulsos atmosféricos de alta tensión.
 
 Orquesta la inicialización del sistema bajo el patrón de diseño arquitectónico 
 Modelo-Vista-Presentador (MVP). Está diseñado para el análisis de ondas de impulso 
@@ -6,6 +6,7 @@ atmosféricos normalizados de :math:`\qty{1.2/50}{\micro\second}`.
 
 Instancia los módulos físicos e inyecta las dependencias al presentador principal antes 
 de ceder el control al bucle de eventos de Qt. Los componentes orquestados incluyen:
+
     * Hardware de adquisición (comunicación VISA).
     * Almacenamiento local (HDF5).
     * Motor de cálculo matemático y validación de impulsos.
@@ -22,6 +23,7 @@ from impulse_analyzer import LightningImpulseAnalyzer
 from gw_instek_gds1000a_u import GWInstekGDS1000AU
 from presenter import MainPresenter
 
+
 class MainWindow(QMainWindow, Ui_MainWindow):
     """Vista principal de la aplicación construida con PySide6.
 
@@ -36,6 +38,7 @@ class MainWindow(QMainWindow, Ui_MainWindow):
         Delega toda la lógica de negocio, manejo de eventos de hardware y actualización 
         de estados al presentador principal (:class:`presenter.MainPresenter`).
     """
+
     def __init__(self) -> None:
         """Inicializa el ciclo de vida de la ventana principal y construye la interfaz.
 

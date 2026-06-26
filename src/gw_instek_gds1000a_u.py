@@ -88,7 +88,7 @@ class GWInstekGDS1000AU:
 
         Returns:
             Tuple[Optional[bytes], Optional[np.ndarray], Optional[float]]: Una tupla que contiene:
-                - Buffer crudo de bytes (``inBuffer``).
+                - Buffer crudo de bytes (``in_buffer``).
                 - Vector de tensión de la onda en :math:`\unit{\volt}` (``waveform``).
                 - Periodo de muestreo temporal en :math:`\unit{\second}` (``dt``).
                 Si la onda no está lista en el instrumento o falla la comunicación,
@@ -111,10 +111,10 @@ class GWInstekGDS1000AU:
                 self.dso.write(f":acquire{channel}:memory?")
 
                 # Leer el encabezado inicial (10 bytes).
-                inBuffer = self.dso.read_bytes(10)
-                length = len(inBuffer)
-                headerlen = 2 + int(chr(inBuffer[1]))
-                pkg_length = int(inBuffer[2:headerlen]) + headerlen
+                in_buffer = self.dso.read_bytes(10)
+                length = len(in_buffer)
+                headerlen = 2 + int(chr(in_buffer[1]))
+                pkg_length = int(in_buffer[2:headerlen]) + headerlen
                 pkg_length = pkg_length - length
 
                 while pkg_length > 0:
@@ -127,11 +127,11 @@ class GWInstekGDS1000AU:
                         print(f"Error al recibir el bloque de datos: {e}")
                         raise RuntimeError("Fallo en la transferencia USB/VISA. Bloque de datos perdido.")
 
-                    inBuffer += buf
+                    in_buffer += buf
                     pkg_length -= len(buf)
 
-                waveform, dt = self.unpack_waveform(inBuffer, headerlen, v_div)
-                return inBuffer, waveform, dt
+                waveform, dt = self.unpack_waveform(in_buffer, headerlen, v_div)
+                return in_buffer, waveform, dt
             else:
                 print('Error: Forma de onda aún no está lista.')
                 return None, None, None
@@ -140,7 +140,7 @@ class GWInstekGDS1000AU:
             self.close()
             return None, None, None
 
-    def unpack_waveform(self, inBuffer: bytes, headerlen: int, vdiv: float) -> Tuple[Optional[np.ndarray], Optional[float]]:
+    def unpack_waveform(self, in_buffer: bytes, headerlen: int, vdiv: float) -> Tuple[Optional[np.ndarray], Optional[float]]:
         r"""Decodifica el buffer de bytes IEEE en vectores matemáticos de tensión y tiempo.
 
         Extrae el periodo de muestreo temporal (:math:`dt`) del encabezado flotante y convierte 
@@ -154,7 +154,7 @@ class GWInstekGDS1000AU:
             V = \text{RAW} \cdot \frac{V_{\text{div}}}{\text{ADC}_{\text{steps}}}
 
         Args:
-            inBuffer (bytes): Cadena de bytes en bruto descargada vía VISA.
+            in_buffer (bytes): Cadena de bytes en bruto descargada vía VISA.
             headerlen (int): Longitud dinámica calculada del encabezado SCPI de bloque.
             vdiv (float): Escala vertical actual del canal en :math:`\unit{\volt\per\text{div}}`.
 
@@ -166,14 +166,14 @@ class GWInstekGDS1000AU:
                   o ``None`` si se produce un fallo durante la conversión.
         """
         try:
-            print(inBuffer[:headerlen])
+            print(in_buffer[:headerlen])
 
             # Desempaquetado del periodo de muestreo dt (float de 4 bytes en Big-Endian)
-            dt = unpack('>f', inBuffer[headerlen : headerlen + 4])[0]
+            dt = unpack('>f', in_buffer[headerlen : headerlen + 4])[0]
             print(f'Periodo de muestreo = {dt*1e9:.0f} [ns]')
 
             # Extracción del segmento binario de la señal de datos y conteo de muestras (short - 2 bytes)
-            raw_data = inBuffer[headerlen + 8:]
+            raw_data = in_buffer[headerlen + 8:]
             num_samples = int(len(raw_data) / 2)
             print(f'Cantidad de muestras = {num_samples}')
 

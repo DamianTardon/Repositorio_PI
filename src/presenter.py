@@ -266,10 +266,12 @@ class MainPresenter(QObject):
         self.ui.attenuations_enabler.stateChanged.connect(self._toggle_attenuations)
 
         # Handlers de Escala Vertical.
-        self.ui.ch1_voltage_value.currentTextChanged.connect(lambda v: self._update_v_scale(1, v, self.ui.ch1_voltage_unit.currentText()))
+        #self.ui.ch1_voltage_value.currentTextChanged.connect(lambda v: self._update_v_scale(1, v, self.ui.ch1_voltage_unit.currentText()))
+        self.ui.ch1_voltage_value.currentTextChanged.connect(lambda: self._update_v_scale(1))
         self.ui.ch1_voltage_unit.currentTextChanged.connect(lambda u: self._change_voltage_unit(1, u))
 
-        self.ui.ch2_voltage_value.currentTextChanged.connect(lambda v: self._update_v_scale(2, v, self.ui.ch2_voltage_unit.currentText()))
+        #self.ui.ch2_voltage_value.currentTextChanged.connect(lambda v: self._update_v_scale(2, v, self.ui.ch2_voltage_unit.currentText()))
+        self.ui.ch2_voltage_value.currentTextChanged.connect(lambda: self._update_v_scale(2))
         self.ui.ch2_voltage_unit.currentTextChanged.connect(lambda u: self._change_voltage_unit(2, u))
 
         # Handler de Escala Horizontal.
@@ -822,7 +824,7 @@ class MainPresenter(QObject):
             "RH": float(rh),
             "AH": float(ah),
             "Pressure": float(press),
-            "Polarity": analyzer_ch1.polarity if analyzer_ch1 else None, # <- Nueva línea agregada
+            "Polarity": analyzer_ch1.polarity if analyzer_ch1 else None,
             "Peak_Voltage": res.get("Ut"),
             "T1": res.get("T1"),
             "T2": res.get("T2"),
@@ -972,12 +974,26 @@ class MainPresenter(QObject):
         self.ui.ch2_resistive_divider_value.setEnabled(state)
         self.ui.ch2_attenuator_value.setEnabled(state)
 
-    def _update_v_scale(self, channel, val_str, unit_str):
+    def _update_v_scale(self, channel: int) -> None:
+        """Sincroniza y envía el valor de ganancia vertical (V/div) hacia el osciloscopio vía SCPI.
+
+        Args:
+            channel (int): Canal del osciloscopio modificado (1 o 2).
+        """
+        if channel == 1:
+            val_str = self.ui.ch1_voltage_value.currentText()
+            unit_str = self.ui.ch1_voltage_unit.currentText()
+        elif channel == 2:
+            val_str = self.ui.ch2_voltage_value.currentText()
+            unit_str = self.ui.ch2_voltage_unit.currentText()
+        else:
+            return
+
         scale = self.osc.process_multipliers(val_str, unit_str)
         if scale is not None:
             self.osc.set_channel_scale(channel, scale)
 
-    def _update_t_scale(self, *args):
+    def _update_t_scale(self):
         val_str = self.ui.time_value.currentText()
         unit_str = self.ui.time_unit.currentText()
         scale = self.osc.process_multipliers(val_str, unit_str)
@@ -1052,7 +1068,7 @@ class MainPresenter(QObject):
         value_selector = self.ui.ch1_voltage_value if channel == 1 else self.ui.ch2_voltage_value
         current_value = value_selector.currentText()
 
-        # Bloquear señales temporalmente mientras vaciamos y llena la lista.
+        # Bloquear señales temporalmente mientras vacia y llena la lista.
         value_selector.blockSignals(True)
         try:
             value_selector.clear()

@@ -37,6 +37,9 @@ class FileManager:
     def __init__(self, project_name: str = "item-año - cliente") -> None:
         """Inicializa los apuntadores de ruta predeterminados asumiendo el directorio de trabajo (cwd).
 
+        Genera automáticamente las rutas a los subdirectorios de trabajo internos, aunque no
+        fuerza su creación en el disco de manera inmediata.
+
         Args:
             project_name (str, optional): Nombre estandarizado para la carpeta raíz 
                 del proyecto. Por defecto es "item-año - cliente".
@@ -55,6 +58,10 @@ class FileManager:
             project_name (str): Nombre del directorio raíz del ensayo.
             base_dir (Optional[Union[str, Path]], optional): Ruta base alternativa de creación. 
                 Si es ``None``, utiliza el directorio de trabajo actual (`Path.cwd()`).
+
+        Raises:
+            PermissionError: Si el sistema operativo deniega los privilegios de escritura en la ruta especificada.
+
         """
         # Si se recibe una ruta base, se usa. Si no, usa el directorio de trabajo (cwd).
         if base_dir:
@@ -68,7 +75,11 @@ class FileManager:
         self._create_structure()
 
     def _create_structure(self) -> None:
-        """Garantiza la creación física en disco de los nodos de directorios del mapa Path si no existen."""
+        """Garantiza la creación física en disco de los nodos de directorios del mapa Path si no existen.
+        
+        Raises:
+            OSError: Si ocurre un error a nivel de sistema de archivos durante la creación de carpetas.
+        """
         # Crea la carpeta si no existe. Y si ya existe no hace nada.
         for carpeta in [self.raw, self.analysis, self.results]:
             carpeta.mkdir(parents=True, exist_ok=True)
@@ -111,6 +122,10 @@ class FileManager:
         Args:
             data (Union[dict, list, np.ndarray]): Arreglo de amplitudes crudas de tensiones o corrientes.
             file_path (Union[str, Path]): Ruta absoluta de destino para el archivo CSV.
+
+        Raises:
+            OSError: Si la ruta es inválida, el archivo está abierto en otro programa o no 
+                hay permisos de escritura.
         """
         # Crear CSV: para guardar una copia de seguridad datos originales de la onda.
         df = pd.DataFrame(data)
@@ -136,7 +151,7 @@ class FileManager:
 
     @staticmethod
     def read_bin_with_header(file_path: Union[str, Path]) -> Tuple[np.ndarray, float]:
-        """Parsea un archivo binario con encabezado IEEE dinámico y extrae el vector escalado y su :math:`dt`.
+        """Parsea un archivo binario con encabezado IEEE dinámico y extrae el vector escalado y su :math:`\Delta t`.
 
         Interpreta la trama inicial SCPI para determinar la longitud declarada de los datos y desempaqueta 
         el periodo de muestreo almacenado como IEEE 754 Float (Big Endian). 
@@ -152,7 +167,7 @@ class FileManager:
 
         Returns:
             Tuple[np.ndarray, float]: Vector escalado de la forma de onda, y periodo de muestreo 
-            :math:`dt` en segundos (:math:`\qty{}{\second}`).
+            :math:`\Delta t` en segundos (:math:`\unit{\second}`).
 
         Raises:
             FileNotFoundError: Si el binario no es encontrado en la ruta especificada.
@@ -219,7 +234,11 @@ class FileManager:
             file_path (Union[str, Path]): Ruta absoluta al archivo plano de la IEC.
 
         Returns:
-            Tuple[Dict[str, Any], List[float]]: Diccionario con metadatos del archivo y lista de valores de onda.
+            Tuple[Dict[str, Any], List[float]]: Tupla que contiene:
+                - Dict[str, Any]: Metadatos extraídos con las siguientes claves:
+                  ``software_version``, ``version_file``, ``wave_name``, ``resolution``,
+                  ``samples``, ``interval``, ``sampling_period``, y la calculada ``rate``.
+                - List[float]: Vector de amplitudes de onda decodificadas.
 
         Raises:
             FileNotFoundError: Si el archivo TDG especificado no existe.
@@ -287,8 +306,13 @@ class FileManager:
 
         Args:
             group (h5py.Group): Nodo o Grupo HDF5 padre.
-            name (str): Clave/nombre asignado al dataset.
+            name (str): Clave/nombre asignado al dataset. Si el dataset ya existe, se elimina 
+                y se sobrescribe.
             data (Any): Array matemático a persistir. Si es ``None``, la operación se ignora.
+        
+        Raises:
+            TypeError: Si el parámetro `data` contiene estructuras o tipos de objetos 
+                que `h5py` no puede convertir y serializar nativamente en un array de C.
         """
         if data is not None:
             if name in group:
@@ -302,12 +326,15 @@ class FileManager:
 
         Almacena metadatos a nivel root (globales) y a nivel de grupo de onda. Particiona los vectores
         matemáticos en subgrupos ``Time``, ``CH1_Voltage`` y opcionalmente ``CH2_Current``.
+        Aplica sanitización sobre los metadatos de la onda: cualquier valor de `wave_data` que 
+        sea ``None`` es convertido a ``np.nan`` para asegurar la integridad analítica de la base de datos.
 
         Args:
             file_path (Union[str, Path]): Ruta de la base de datos del ensayo.
             wave_name (str): Identificador único cronológico para el nodo principal (ej. 'Onda_01').
             global_data (Dict[str, Any]): Atributos transversales del ensayo (Cliente, Divisores).
-            wave_data (Dict[str, Any]): Parámetros calculados para el evento (Fecha, Condiciones atmosféricas, Parámetros de la onda).
+            wave_data (Dict[str, Any]): Parámetros calculados para el evento (Fecha, Condiciones atmosféricas, 
+                Parámetros de la onda).
             time_data (Dict[str, Any]): Vectores de tiempo crudo y alineado.
             ch1_data (Dict[str, Any]): Matrices de amplitudes de tensión calculadas (raw, test, norm).
             ch2_data (Optional[Dict[str, Any]], optional): Matrices de corriente capturadas en CH2 (si existiesen).
@@ -348,8 +375,9 @@ class FileManager:
     def read_hdf5_waveforms(self, file_path: Union[str, Path]) -> Tuple[Dict[str, Any], Dict[str, Dict[str, Any]]]:
         """Extrae el volumen completo de la base de datos para reinyección en memoria o visualización gráfica.
 
-        Filtra y ordena cronológicamente los nodos de tipo 'Onda_*' y 'Referencia_*'. Maneja el fallback 
-        de los vectores (ej. usando array crudo si el array de test analizado no existe).
+        Filtra y ordena cronológicamente los nodos de tipo 'Onda_*' y 'Referencia_*'. Implementa un 
+        mecanismo de *fallback* para determinar los vectores prioritarios (e.g., intenta cargar vectores de 
+        ensayo `test`; si no existen, recurre a los vectores crudos `raw`).
 
         Args:
             file_path (Union[str, Path]): Ruta del archivo de datos estructurado.
@@ -357,8 +385,11 @@ class FileManager:
         Returns:
             Tuple[Dict[str, Any], Dict[str, Dict[str, Any]]]: 
                 - Diccionario con atributos globales del ensayo.
-                - Diccionario anidado mapeando nombres de onda con sus respectivos vectores de tiempo, 
-                  tensión y corriente. 
+                - Diccionario anidado que mapea los nombres de las ondas hacia un sub-diccionario con 
+                  las siguientes claves estáticas:
+                  ``"t"`` (vector temporal), ``"ch1_real"`` (tensión real), ``"ch1_norm"`` (tensión 
+                  normalizada), ``"ch2_real"`` (corriente real, opcional) y ``"ch2_norm"`` (corriente 
+                  normalizada, opcional).
                 *Nota:* Si el archivo en disco no existe, retorna tuplas de diccionarios vacíos ``({}, {})``.
         """
         # Leer el archivo HDF5 para recuperar los datos guardados.
@@ -421,19 +452,32 @@ class FileManager:
     def export_hdf5_results_to_dataframe(self, file_path: Union[str, Path]) -> Optional[pd.DataFrame]:
         """Recopila la tabla paramétrica y ambiental de las ondas de ensayo en formato tabular.
 
-        Parsea los atributos HDF5 de las curvas de ensayo y ejecuta conversiones
-        y redondeos de unidades del SI. Discrimina selectivamente la información, tomando solo 
-        las 'Ondas de ensayo' y excluyendo intencionalmente las 'Ondas de Referencia'.
+        Parsea los atributos HDF5 de las curvas de ensayo, ejecutando conversiones y escalados de unidades
+        físicas (e.g., tensiones llevadas de :math:`\unit{\volt}` a :math:`\unit{\kilo\volt}` y tiempos de 
+        :math:`\unit{\second}` a :math:`\unit{\micro\second}`). Discrimina selectivamente la información, 
+        guardando solo las 'Ondas de ensayo' y excluyendo las 'Ondas de Referencia' ya que no son necesarias.
 
         Args:
             file_path (Union[str, Path]): Ruta al archivo HDF5 a consolidar.
 
         Returns:
-            Optional[pd.DataFrame]: Estructura DataFrame limpia lista para exportación. 
-            Contiene múltiples flujos de contingencia evaluados por el Presentador gráfico:
-                - Retorna ``None`` si la base de datos no existe físicamente en el disco.
-                - Retorna un ``pd.DataFrame`` vacío si la base existe pero carece de 
-                  ondas de ensayo exportables (condición que activa una notificación UI de "Sin datos").
+            Optional[pd.DataFrame]: Estructura de salida lista para exportación. 
+            Contiene el siguiente esquema estático de columnas:
+                - ``"Item"`` (str)
+                - ``"Nombre de onda"`` (str)
+                - ``"Polaridad"`` (str)
+                - ``"Valor Pico [kV]"`` (float)
+                - ``"T1 [µs]"`` (float)
+                - ``"T2 [µs]"`` (float)
+                - ``"Sobrepasamiento [%]"`` (float)
+                - ``"Temp. Seca [°C]"`` (float)
+                - ``"Temp. Humeda [°C]"`` (float)
+                - ``"Humedad Rel. [%]"`` (float)
+                - ``"Humedad Abs. [g/m3]"`` (float)
+                - ``"Presion [hPa]"`` (float)
+
+            Retorna ``None`` si la base de datos no existe físicamente en el disco.
+            Retorna un ``pd.DataFrame`` vacío si la base existe pero carece de ondas exportables.
         """
         # Verificar si existe el archivo que contiene la información de las ondas.
         if not os.path.exists(file_path):

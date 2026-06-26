@@ -221,4 +221,5 @@ class FileManager:
                 - Retorna un ``pd.DataFrame`` vacío si la base existe pero carece de 
                   ondas de ensayo exportables (condición que activa una notificación UI de "Sin datos").
         """
+        
         pass

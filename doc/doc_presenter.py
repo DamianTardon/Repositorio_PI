@@ -32,7 +32,7 @@ class MockChannel2Analyzer:
     r"""Contenedor de datos pasivo para la señal del canal 2 (corriente).
 
     Almacena la onda escalada por sus atenuadores para tareas de visualización y persistencia.
-    Omite deliberadamente el cálculo de parámetros normativos (:math:`T_1`, :math:`T_2`, etc.) 
+    Omite el cálculo de parámetros normativos (:math:`T_1`, :math:`T_2`, etc.) 
     al no ser aplicables a esta magnitud física en el contexto del analizador principal.
 
     Attributes:
@@ -104,8 +104,8 @@ class WaitWaveformThread(QThread):
 class MainPresenter(QObject):
     r"""Presentador principal del patrón Modelo-Vista-Presentador (MVP).
 
-    Orquesta la interacción entre la interfaz gráfica (Vista), el hardware de adquisición, 
-    y el motor matemático/almacenamiento (Modelo). Maneja la lógica de presentación, 
+    Orquesta la interacción entre la Vista (interfaz gráfica), y el Modelo (el hardware de adquisición, 
+    y el motor matemático/almacenamiento). Maneja la lógica de presentación, 
     estados de ensayos y renderizado de gráficos a través de pyqtgraph.
 
     Attributes:
@@ -123,11 +123,11 @@ class MainPresenter(QObject):
         wait_thread (Optional[WaitWaveformThread]): Referencia al hilo de adquisición asíncrona.
         saved_waves_data (Dict[str, Any]): Buffer en RAM de las ondas cargadas/guardadas para renderizado.
         color_index (int): Índice que gobierna la rotación de tonalidades para las ondas dibujadas.
-        voltage_values (Dict[str, list]): Opciones permitidas de V/div según la magnitud seleccionada.
-        time_values (Dict[str, list]): Opciones permitidas de base de tiempo (s/div) por magnitud.
+        voltage_values (Dict[str, list]): Valores permitidos de la escala de amplitud (V/div) según la magnitud seleccionada.
+        time_values (Dict[str, list]): Valores permitidos de la escala de tiempo (s/div) según la magnitud.
         visibility_menu (QMenu): Menú contextual para el control de visibilidad de trazas.
-        action_show_all (QAction): Puntero al botón de menú para habilitar visibilidad masiva.
-        action_hide_all (QAction): Puntero al botón de menú para deshabilitar visibilidad masiva.
+        action_show_all (QAction): Puntero al botón de menú para habilitar visibilidad de todas las ondas almacenadas.
+        action_hide_all (QAction): Puntero al botón de menú para deshabilitar visibilidad de todas las ondas almacenadas.
         legend (pg.LegendItem): Leyenda principal del lienzo de ploteo de PyQtGraph.
         view_box_ch2 (pg.ViewBox): Caja de vista superpuesta para escalar independientemente el CH2.
         right_axis (pg.AxisItem): Eje Y secundario anclado a la derecha para magnitud de corriente.
@@ -191,7 +191,7 @@ class MainPresenter(QObject):
         pass
 
     def load_tdg_waveform(self) -> None:
-        r"""Carga una onda sintética plana (TDG) desde el disco para depuración de algoritmos (DEBUG_MODE).
+        r"""Carga una onda sintética plana (TDG) desde el disco para depuración de algoritmos (DEBUG_MODE) y estimación de la incertidumbre del algoritmo según la norma IEC.
 
         Abre un diálogo de selección de archivo nativo. Si ocurre un fallo en la lectura, la 
         excepción es capturada y notificada mediante un ``QMessageBox`` interactivo.
@@ -219,7 +219,7 @@ class MainPresenter(QObject):
 
     def receive_waveform(self) -> None:
         r"""Instancia o cancela el hilo `WaitWaveformThread` para la captura asíncrona de un disparo de hardware.
-        
+
         Actúa como comportamiento "Toggle" sobre el botón de inicio de captura en la interfaz.
         """
         pass
@@ -243,7 +243,7 @@ class MainPresenter(QObject):
         pass
 
     def save_waveform(self) -> None:
-        r"""Valida, empaqueta y persiste el evento, actualizando el lienzo del historial.
+        r"""Valida, empaqueta y persiste el evento de captura de onda, actualizando el lienzo del historial.
 
         Guarda el objeto estructurado HDF5, exporta un CSV crudo como backup y transfiere la traza 
         exitosa al buffer persistente (``saved_waves_data``) añadiéndola al menú de visibilidad gráfico.
@@ -279,7 +279,7 @@ class MainPresenter(QObject):
         pass
 
     def _on_attenuation_changed(self, line_edit: QLineEdit, field_name: str, channel: int) -> None:
-        r"""Fuerza un reprocesamiento al vuelo del buffer temporal si el usuario ajusta un atenuador post-captura.
+        r"""Fuerza un reprocesamiento del buffer temporal si el usuario ajusta un atenuador post-captura.
 
         Args:
             line_edit (QLineEdit): Puntero al widget de origen del cambio.
@@ -289,11 +289,11 @@ class MainPresenter(QObject):
         pass
 
     def _toggle_attenuations(self) -> None:
-        r"""Conmuta dinámicamente el estado habilitado/deshabilitado de los divisores de hardware en la GUI."""
+        r"""Conmuta dinámicamente el estado habilitado/deshabilitado de los atenuadores de hardware en la GUI."""
         pass
 
     def _update_v_scale(self, channel: int) -> None:
-        r"""Sincroniza y envía el valor de ganancia vertical (V/div) hacia el osciloscopio vía SCPI.
+        r"""Sincroniza y envía el valor de escala vertical (V/div) hacia el osciloscopio vía SCPI.
 
         Extrae el estado actual de los selectores visuales dinámicamente sin requerir 
         el paso de parámetros desde el emisor de la señal.
@@ -304,11 +304,11 @@ class MainPresenter(QObject):
         pass
 
     def _update_t_scale(self) -> None:
-        r"""Sincroniza y envía el comando de escala de base de tiempo horizontal (s/div) hacia el hardware."""
-         pass
+        r"""Sincroniza y envía el valor de escala horizontal (s/div) hacia el osciloscopio vía SCPI."""
+        pass
 
     def _update_offset(self, channel: int) -> None:
-        r"""Sincroniza y actualiza la inyección de offset vertical continua de un canal en el instrumento.
+        r"""Sincroniza y actualiza la inyección de offset vertical de un canal en el instrumento.
 
         Args:
             channel (int): Canal referenciado para la actualización del nivel DC de desplazamiento (1 o 2).
@@ -320,7 +320,7 @@ class MainPresenter(QObject):
         pass
 
     def _update_trigger_level(self) -> None:
-        r"""Envía el umbral de tensión absoluto para activar la topología del circuito de disparo."""
+        r"""Configura el umbral de tensión absoluto para activar el circuito de disparo."""
         pass
 
     @Slot(str)
@@ -333,29 +333,45 @@ class MainPresenter(QObject):
         pass
 
     def synchronize_instrument(self) -> None:
-        r"""Lanza un comando `*RST` de fábrica agendando la re-sincronización de la GUI en diferido."""
+        r"""Restablece la configuración de fábrica del instrumento, agendando la re-sincronización de la GUI en diferido."""
         pass
 
     def _continue_synchronization(self) -> None:
-        r"""Aplica masivamente el estado actual de los selectores de la GUI hacia la memoria de la placa del hardware."""
+        r"""Aplica masivamente el estado actual de los selectores de la GUI hacia la memoria del instrumento."""
         pass
 
     def _change_voltage_unit(self, channel: int, unit: str) -> None:
         r"""Modifica dinámicamente el Combobox de magnitudes de tensión basándose en la unidad principal.
 
-        Bloquea temporalmente el envío de señales Qt (`blockSignals`) para prevenir condiciones de carrera.
+        Bloquea temporalmente el envío de señales Qt (`blockSignals`) para prevenir fallos en la ejecución.
+
+        .. note::
+            **Uso de `blockSignals(True)`:** Al vaciar (`.clear()`) y rellenar (`.addItems()`) 
+            el ComboBox con las nuevas opciones, el widget emitiría automáticamente múltiples 
+            señales `currentTextChanged`. Esto causaría una "condición de carrera", enviando 
+            valores vacíos o erróneos al osciloscopio y provocando fallos en la ejecución. 
+            El bloqueo silencia estas emisiones temporales hasta que la interfaz esté 
+            completamente actualizada y estabilizada.
 
         Args:
             channel (int): Canal de hardware objetivo (1 o 2).
-            unit (str): Selector de unidad objetivo seleccionada en GUI (ej. "mV").
+            unit (str): Unidad seleccionada en GUI ("mV" o "V").
         """
         pass
 
     def _change_time_unit(self, unit: str) -> None:
         r"""Modifica dinámicamente el Combobox de la base de tiempo horizontal basándose en la unidad.
 
+        .. note::
+            **Uso de `blockSignals(True)`:** Al vaciar (`.clear()`) y rellenar (`.addItems()`) 
+            el ComboBox con las nuevas opciones, el widget emitiría automáticamente múltiples 
+            señales `currentTextChanged`. Esto causaría una "condición de carrera", enviando 
+            valores vacíos o erróneos al osciloscopio y provocando fallos en la ejecución. 
+            El bloqueo silencia estas emisiones temporales hasta que la interfaz esté 
+            completamente actualizada y estabilizada.
+
         Args:
-            unit (str): Cadena que denota el modificador temporal ("ns", "µs", "ms", "s").
+            unit (str): Unidad seleccionada en GUI ("ns", "µs", "ms", "s").
         """
         pass
 
@@ -364,27 +380,27 @@ class MainPresenter(QObject):
 
         Args:
             name (str): Etiqueta clave bajo la cual la onda de sesión fue guardada.
-            checked (bool): Estado lógico para determinar si se habilita (True) o se oculta (False).
+            checked (bool): Estado lógico para determinar si se muestra (True) o se oculta (False).
         """
         pass
 
     def _set_all_waves_visibility(self, visible: bool) -> None:
-        r"""Aplica un estado de visibilidad masivo e incondicional a todo el historial de curvas del gráfico.
+        r"""Aplica un estado de visibilidad a todo el historial de curvas del gráfico.
 
         Args:
-            visible (bool): Nuevo estado estricto (True para todas expuestas, False para todas ocultas).
+            visible (bool): Estado de visibilidad (True para todas expuestas, False para todas ocultas).
         """
         pass
 
     def export_results(self) -> None:
-        r"""Exporta tabularmente los resultados analíticos recopilados hacia ficheros estructurados (Excel/CSV).
+        r"""Exporta una tabla de resultados analíticos recopilados hacia ficheros estructurados (Excel/CSV).
 
         Si la persistencia en disco se efectúa exitosamente, llama rutinas del SO para invocar 
         al explorador nativo. Si un fichero está bloqueado o existe falta de permisos de escritura, 
         la excepción interna se procesa y se advierte en pantalla gráficamente en lugar de romper el hilo.
 
         .. note::
-            Posee un comportamiento deliberadamente invasivo: utiliza módulos de bajo nivel (``platform`` y 
+            Utiliza módulos de bajo nivel (``platform`` y 
             ``subprocess``) para optimizar la experiencia de usuario, dándole acceso inmediato a la tabla 
             para su revisión, invocando al explorador de archivos nativo del sistema operativo 
             (Windows ``explorer``, macOS ``open`` o Linux ``xdg-open``) y apuntando al documento recién creado.

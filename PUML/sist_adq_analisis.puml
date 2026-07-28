@@ -1,0 +1,24 @@
+@startuml
+skinparam monochrome true
+
+skinparam defaultTextAlignment center
+skinparam rectangle {
+    RoundCorner 10
+}
+
+title Diagrama de Contexto (C4 Nivel 1) - Sistema de Adquisición y Análisis
+
+actor "Operador del Laboratorio\n[Persona]" as operador
+
+rectangle "Software de Adquisición y Análisis\n[Sistema de Software]\n\nAutomatiza la digitalización, análisis matemático normativo (IEC 60060-1 / 61083-2) y almacenamiento estructurado de impulsos tipo rayo." as software
+
+rectangle "Osciloscopio Digital\n[Sistema de Hardware]\n\nGW Instek GDS-1000A-U. Ejecuta el muestreo discreto de las señales transitorias." as osciloscopio
+
+rectangle "Circuito de Ensayo de Alta Tensión\n[Infraestructura Físico-Eléctrica]\n\nGenerador de impulsos, elemento bajo prueba, divisor resistivo de tensión y resistencia shunt." as hardware
+
+operador -down-> software : Configura variables, controla captura\ny exporta resultados
+software -down-> osciloscopio : Orquesta adquisición y configuración\n(Comandos SCPI vía USB/VISA)
+osciloscopio -up-> software : Transmite tramas binarias (datos RAW y metadatos)
+hardware -up-> osciloscopio : Inyecta señales analógicas atenuadas (Tensión y Corriente)
+
+@enduml

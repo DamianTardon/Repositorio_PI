@@ -1,0 +1,44 @@
+@startuml
+skinparam monochrome true
+skinparam linetype ortho
+skinparam classAttributeIconSize 0
+hide empty members
+
+package "PySide6.QtWidgets" {
+    class QMainWindow
+}
+
+package "pyqtgraph" {
+    class PlotWidget
+}
+
+package "ui_graphic_user_interface" {
+    class Ui_MainWindow {
+        + centralwidget : QWidget
+        + environmental_conditions_block : QFrame
+        + oscilloscope_configurations_block : QFrame
+        + impulse_graph_block : QFrame
+        + test_results_block : QFrame
+        + test_block : QFrame
+        + test_data_block : QFrame
+        + system_attenuations_block : QFrame
+        + graph_view : PlotWidget
+        --
+        + setupUi(MainWindow: QMainWindow) : void
+        + retranslateUi(MainWindow: QMainWindow) : void
+    }
+}
+
+package "main" {
+    class MainWindow {
+        + __init__()
+    }
+}
+
+' Relaciones de herencia (Múltiple)
+QMainWindow <|-- MainWindow
+Ui_MainWindow <|-- MainWindow
+
+' Relaciones de composición visual
+Ui_MainWindow *-- PlotWidget : "instancia"
+@enduml

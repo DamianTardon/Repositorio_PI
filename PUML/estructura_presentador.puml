@@ -1,0 +1,74 @@
+@startuml
+skinparam monochrome true
+
+class QObject <<Qt>> {
+}
+
+class QThread <<Qt>> {
+}
+
+class MockChannel2Analyzer {
+    + raw_voltage : np.ndarray
+    + time_axis : np.ndarray
+    + aligned_time_axis : np.ndarray
+    + test_voltage_curve : np.ndarray
+    + test_voltage_curve_norm : np.ndarray
+    + __init__(waveform: np.ndarray, dt: float)
+}
+
+class WaitWaveformThread {
+    + wave_detected : Signal
+    + error_occurred : Signal
+    - _is_running : bool
+    + __init__(oscilloscope: GWInstekGDS1000AU)
+    + run() : void
+    + stop() : void
+}
+
+class MainPresenter {
+    + ui : Ui_MainWindow
+    + osc : GWInstekGDS1000AU
+    + fm : FileManager
+    + AnalyzerClass : Type[LightningImpulseAnalyzer]
+    + ref_analyzer : LightningImpulseAnalyzer
+    + pending_analyzers : Dict
+    + last_acquired_data : Dict
+    + wave_count : int
+    + ref_count : int
+    + project_created : bool
+    + wait_thread : WaitWaveformThread
+    + saved_waves_data : Dict
+    + __init__(ui, oscilloscope, file_manager, analyzer_class)
+    - _setup_ui() : void
+    - _connect_signals() : void
+    - _update_results_gui(analyzer: LightningImpulseAnalyzer) : void
+    - _update_plot() : void
+    + load_tdg_waveform() : void
+    + search_manual_instrument() : void
+    + create_new_project() : void
+    + receive_waveform() : void
+    + process_waveform() : void
+    - _process_and_plot_acquired_data() : void
+    + save_waveform() : void
+    - _apply_hardware_attenuations(waveform: np.ndarray, channel: int) : np.ndarray
+    + synchronize_instrument() : void
+    + export_results() : void
+}
+
+QThread <|-- WaitWaveformThread
+QObject <|-- MainPresenter
+
+MainPresenter *-- WaitWaveformThread : Instancia y gestiona >
+MainPresenter ..> MockChannel2Analyzer : Crea para CH2 >
+
+class Ui_MainWindow <<GUI>>
+class GWInstekGDS1000AU <<Hardware>>
+class FileManager <<IO>>
+class LightningImpulseAnalyzer <<Math>>
+
+MainPresenter o-- "1" Ui_MainWindow : Inyectado
+MainPresenter o-- "1" FileManager : Inyectado
+MainPresenter o-- "1..*" LightningImpulseAnalyzer : Inyectado/Instancia
+MainPresenter o-- "1" GWInstekGDS1000AU : Inyectado
+WaitWaveformThread o-- "1" GWInstekGDS1000AU : Referencia
+@enduml

@@ -200,7 +200,7 @@ class ReportPDF(FPDF):
                              "Faltan los metadatos del TDG.")
         else:
             software_version = self.tdg_meta.get('software_version', 'N/A')
-            resolution = seself.tdg_meta.get('resolution', 'N/A')
+            resolution = self.tdg_meta.get('resolution', 'N/A')
             rate = self.tdg_meta.get('rate', 'N/A')
 
             self.cell(
@@ -586,7 +586,7 @@ class ReportPDF(FPDF):
             self.cell(
                 w=CELL_WIDTH,
                 h=CELL_HEIGHT,
-                txt=header,
+                text=header,
                 border=BORDER_ALL,
                 align=ALIGN_CENTER
             )

@@ -1,0 +1,75 @@
+@startuml
+skinparam monochrome true
+skinparam linetype ortho
+skinparam classAttributeIconSize 0
+
+package "Framework de Calibración" {
+    
+    class ImpulseCase <<NamedTuple>> {
+        + file_id : str
+        + description : str
+        + U_reference : float
+        + U_tolerance : float
+        + T1_reference : float
+        + T1_tolerance : float
+        + T2_reference : float
+        + T2_tolerance : float
+        + OS_reference : float
+        + OS_tolerance : float
+    }
+
+    class UncertaintyCase <<NamedTuple>> {
+        + file_id : str
+        + U_reference : float
+        + U_ux : float
+        + U_n : int
+        + T1_reference : float
+        + T1_ux : float
+        + T1_n : int
+        + T2_reference : float
+        + T2_ux : float
+        + T2_n : int
+        + OS_reference : float
+        + OS_ux : float
+        + OS_n : int
+    }
+
+    class test_cases_data <<Module>> {
+        + nan : float
+        + RAW_TABLE_A1_LI : List[RawImpulseTuple]
+        + RAW_TABLE_A2_LIC : List[RawImpulseTuple]
+        + RAW_TABLE_B1_LI : List[RawUncertaintyTuple]
+        + RAW_TABLE_B2_LIC : List[RawUncertaintyTuple]
+        + TEST_CASES_LI : List[ImpulseCase]
+        + TEST_CASES_LIC : List[ImpulseCase]
+        + UNCERTAINTY_CASES_LI : List[UncertaintyCase]
+        + UNCERTAINTY_CASES_LIC : List[UncertaintyCase]
+    }
+
+    class test_impulse_analyzer <<Module>> {
+        + BASE_DIR : Path
+        + _calc_uB7(dataset: List[Dict], deviation_key: str, urefs_key: str) : Tuple[float, float, float]
+        + check_failures(res: Dict[str, float], case: ImpulseCase) : List[str]
+        + create_result_dict(case: ImpulseCase, uncertainty_case: UncertaintyCase, res: Dict[str, float]) : Dict[str, Any]
+        + report_data() : Generator[Dict[str, Any], None, None] <<fixture>>
+        + test_calibration_iec_li(case: ImpulseCase, report_data: Dict[str, Any]) : None
+        + test_calibration_iec_lic(case: ImpulseCase, report_data: Dict[str, Any]) : None
+    }
+
+}
+
+class LightningImpulseAnalyzer <<External>>
+class ReportPDF <<External>>
+class FileManager <<External>>
+
+test_cases_data *-- ImpulseCase
+test_cases_data *-- UncertaintyCase
+test_impulse_analyzer ..> test_cases_data : inyecta parámetros
+test_impulse_analyzer ..> ImpulseCase : evalúa
+test_impulse_analyzer ..> UncertaintyCase : evalúa
+
+test_impulse_analyzer ..> LightningImpulseAnalyzer : instancia
+test_impulse_analyzer ..> ReportPDF : instancia
+test_impulse_analyzer ..> FileManager : usa
+
+@enduml

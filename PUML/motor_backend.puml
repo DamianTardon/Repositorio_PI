@@ -1,0 +1,76 @@
+@startuml
+skinparam monochrome true
+skinparam classAttributeIconSize 0
+
+package "Motores de Backend" {
+    
+    class LightningImpulseAnalyzer {
+        - sampling_period: float
+        - sigma_fit: float
+        - raw_voltage: np.ndarray
+        - time_axis: np.ndarray
+        - impulse_type: str
+        + results: dict
+        - peak_value: float
+        - offset_value: float
+        - fitted_params: dict
+        - Ut: float
+        + __init__(voltage_data: np.ndarray, sampling_period: float, sigma_fit: float)
+        - _remove_offset(): void
+        - _polarity_normalization(): void
+        - _normalize_waveform(): void
+        - _cutting_signal(): void
+        - _fit_base_curve(): void
+        - _construct_base_curve(): void
+        - _calculate_residual_curve(): void
+        - _create_digital_filter(): tuple
+        - _filter_to_residual(): void
+        - _construct_test_voltage_curve(): void
+        - _calc_front_parameters(Ut: float): tuple
+        - _calc_tail_parameter(Ut: float, O1: float): float
+        - _calculate_parameters(): void
+        - _find_time_lag(ref_analyzer: LightningImpulseAnalyzer): void
+        - _find_deviation_point(ref_analyzer: LightningImpulseAnalyzer, threshold: float): void
+        - _find_chopping_instant(): void
+        + ref_lightning_impulse(): void
+        + lightning_impulse(ref_analyzer: LightningImpulseAnalyzer): void
+    }
+
+    class FileManager {
+        + {static} ADC_STEPS_PER_DIV: float
+        - base: Path
+        - raw: Path
+        - analysis: Path
+        - results: Path
+        + __init__(project_name: str)
+        + create_new_structure(project_name: str, base_dir: str): void
+        - _create_structure(): void
+        + get_new_filename(filename: str, extension: str): Path
+        + {static} create_csv(data: np.ndarray, file_path: str): void
+        + {static} read_bin_with_header(file_path: str): tuple
+        + {static} read_TDG_file(file_path: str): tuple
+        + get_existing_wave_count(h5_file_path: str): tuple
+        - {static} _save_dataset(group: h5py.Group, name: str, data: Any): void
+        + append_to_hdf5(file_path: str, wave_name: str, global_data: dict, wave_data: dict, time_data: dict, ch1_data: dict, ch2_data: dict): void
+        + read_hdf5_waveforms(file_path: str): tuple
+        + export_hdf5_results_to_dataframe(file_path: str): pd.DataFrame
+    }
+
+    class FPDF << External >> {
+    }
+
+    class ReportPDF {
+        + software_meta: dict
+        + tdg_meta: dict
+        + __init__(software_meta: dict, tdg_meta: dict)
+        + header(): void
+        + add_metadata_section(): void
+        + add_results_table(results_li: list, results_lic: list): void
+        - _draw_results_table(results_data: list): void
+        + add_uncertainty_table(uncertainty_li: dict, uncertainty_lic: dict): void
+        - _draw_uncertainty_table(uncertainty_results: dict): void
+    }
+
+    FPDF <|-- ReportPDF
+}
+@enduml

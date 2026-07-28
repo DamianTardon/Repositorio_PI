@@ -1,0 +1,75 @@
+@startuml
+skinparam monochrome true
+
+actor "Pytest (Runner)" as pytest
+participant "Fixture\n(report_data)" as fixture
+participant "Prueba Parametrizada\n(test_calibration)" as test
+participant "FileManager" as fm
+participant "LightningImpulseAnalyzer" as analyzer
+participant "ReportPDF" as pdf
+
+pytest -> fixture: Inicia sesión (Setup)
+activate fixture
+fixture --> pytest: yield dict (LI, LIC, TDG_META)
+deactivate fixture
+
+loop Para cada caso en TEST_CASES (LI/LIC)
+    pytest -> test: Invoca test(case, report_data)
+    activate test
+    
+    test -> fm: read_TDG_file(file_path)
+    activate fm
+    fm --> test: metadata, data
+    deactivate fm
+    
+    test -> analyzer **: __init__(data, dt, sigma_fit)
+    
+    test -> analyzer: ref_lightning_impulse() o lightning_impulse(ref)
+    activate analyzer
+    analyzer -> analyzer: Ejecuta pipeline matemático
+    analyzer --> test: Actualiza estado (self.results)
+    deactivate analyzer
+    
+    test -> test: create_result_dict(case, u_case, results)
+    test -> test: Añade a report_data["LI"] o ["LIC"]
+    
+    test -> test: check_failures(results, case)
+    alt Fallos detectados
+        test -> pytest: pytest.fail(fallos)
+    else Éxito (Tolerancias OK)
+        test --> pytest: Pass
+    end
+    deactivate test
+end
+
+pytest -> fixture: Retoma ejecución (Teardown)
+activate fixture
+
+fixture -> fixture: _calc_uB7(dataset, dev_key, uref_key)
+
+fixture -> pdf **: __init__(software_meta, tdg_meta)
+
+fixture -> pdf: add_metadata_section()
+activate pdf
+pdf --> fixture
+deactivate pdf
+
+fixture -> pdf: add_results_table(data["LI"], data["LIC"])
+activate pdf
+pdf --> fixture
+deactivate pdf
+
+fixture -> pdf: add_uncertainty_table(u_LI, u_LIC)
+activate pdf
+pdf --> fixture
+deactivate pdf
+
+fixture -> pdf: output(pdf_path)
+activate pdf
+pdf --> fixture: Archivo guardado en disco
+deactivate pdf
+
+fixture --> pytest: Fin de ejecución
+deactivate fixture
+
+@enduml

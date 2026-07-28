@@ -1,0 +1,57 @@
+@startuml
+skinparam monochrome true
+left to right direction
+skinparam componentStyle uml2
+
+package "Capa de Presentación (Vista-Presentador)" {
+    [ui_graphic_user_interface.py]
+    [presenter.py]
+}
+
+package "Capa de Lógica (Dominio Numérico)" {
+    [impulse_analyzer.py]
+}
+
+package "Capa de Abstracción de Hardware (HAL)" {
+    [gw_instek_gds1000a_u.py]
+}
+
+package "Capa de Persistencia (I/O)" {
+    [file_manager.py]
+}
+
+package "Capa de Reportes" {
+    [report.py]
+}
+
+package "Framework de Calibración" {
+    [test_impulse_analyzer.py]
+}
+
+package "Dependencias Externas" {
+    [PySide6]
+    [pyqtgraph]
+    [pyvisa]
+    [numpy]
+    [scipy]
+    [pandas]
+    [h5py]
+    [fpdf]
+    [pytest]
+}
+
+' Bibliotecas externas
+[ui_graphic_user_interface.py] ..> [PySide6]
+[presenter.py] ..> [PySide6]
+[presenter.py] ..> [pyqtgraph]
+[gw_instek_gds1000a_u.py] ..> [pyvisa]
+[gw_instek_gds1000a_u.py] ..> [numpy]
+[impulse_analyzer.py] ..> [numpy]
+[impulse_analyzer.py] ..> [scipy]
+[file_manager.py] ..> [h5py]
+[file_manager.py] ..> [pandas]
+[file_manager.py] ..> [numpy]
+[report.py] ..> [fpdf]
+[test_impulse_analyzer.py] ..> [pytest]
+
+@enduml

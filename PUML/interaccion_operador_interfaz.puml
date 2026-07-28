@@ -1,0 +1,37 @@
+@startuml
+skinparam monochrome true
+skinparam linetype ortho
+left to right direction
+
+actor "Operador" as op
+
+rectangle "Interfaz Gráfica de Usuario (PySide6)" {
+    usecase "Gestionar Proyecto de Ensayo" as UC_GestionarProyecto
+    usecase "Configurar Condiciones Ambientales" as UC_ConfigurarAmbiente
+    usecase "Configurar Atenuaciones de Hardware" as UC_ConfigurarAtenuacion
+    usecase "Establecer Parámetros de Osciloscopio" as UC_ConfigurarOsciloscopio
+    usecase "Ejecutar Adquisición de Señal" as UC_Adquirir
+    usecase "Visualizar Trazas y Resultados" as UC_Visualizar
+    usecase "Persistir Forma de Onda" as UC_Guardar
+    usecase "Exportar Reporte de Resultados" as UC_Exportar
+
+    usecase "Buscar y Enlazar Instrumento" as UC_Conectar
+    usecase "Evaluar Parámetros Normativos" as UC_Analizar
+    usecase "Generar Estructura HDF5/CSV" as UC_Estructura
+}
+
+op --> UC_GestionarProyecto
+op --> UC_ConfigurarAmbiente
+op --> UC_ConfigurarAtenuacion
+op --> UC_ConfigurarOsciloscopio
+op --> UC_Adquirir
+op --> UC_Visualizar
+op --> UC_Guardar
+op --> UC_Exportar
+
+UC_GestionarProyecto ..> UC_Estructura : <<include>>
+UC_ConfigurarOsciloscopio ..> UC_Conectar : <<include>>
+UC_Adquirir ..> UC_Conectar : <<include>>
+UC_Adquirir ..> UC_Analizar : <<include>>
+UC_Guardar ..> UC_Estructura : <<include>>
+@enduml

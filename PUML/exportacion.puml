@@ -1,0 +1,59 @@
+@startuml
+skinparam monochrome true
+
+|GUI / Operador|
+start
+:Acciona "Exportar";
+
+|MainPresenter|
+if (¿Proyecto creado/cargado?) then (No)
+    :Advertir: Proyecto nulo;
+    detach
+else (Sí)
+    :Filtrar datos de entrada;
+endif
+
+:Construir ruta del archivo HDF5;
+
+|FileManager|
+:Exportar resultados a HDF5;
+if (¿Existe HDF5?) then (No)
+  :Retornar\nNone;
+else (Sí)
+  :Extraer \nmetadatos globales;
+  :Filtrar grupos "Onda_*"\n(excluir "Referencia");
+  :Escalar unidades\n(V a kV, s a µs);
+  :Ensamblar Base de datos;
+  :Retornar Base de datos;
+endif
+
+|MainPresenter|
+if (¿Base de datos vacía?) then (Sí)
+    :Advertir: "Sin datos exportables";
+    detach
+else (No)
+    :Definir ruta destino\n"03 Resultados";
+endif
+
+|GUI / Operador|
+:Seleccionar directorio y formato\n(XLSX / CSV);
+
+|MainPresenter|
+:Validar y adjuntar extensión de archivo;
+
+if (¿Formato?) then (Excel)
+    :Exportar a XLSX;
+else (CSV)
+    :Exportar a CSV;
+endif
+
+if (¿Problema al guardar?) then (Sí)
+    :Advertir conflicto;
+    stop
+else (No)
+    :Identificar Sistema Operativo;
+    :Abrir carpeta destino;
+    stop
+endif
+
+@enduml

@@ -1,0 +1,41 @@
+@startuml
+skinparam monochrome true
+skinparam linetype ortho
+skinparam defaultTextAlignment center
+
+node "Montaje de Ensayo (Alta Tensión)" as ensayo {
+    node "Divisor de Tensión Resistivo" as divisor
+    node "Resistencia Shunt" as shunt
+}
+
+node "Osciloscopio Digital\n(GW Instek GDS-1000A-U)" as osciloscopio <<Instrument>> {
+    component "Conversor A/D\n(25 steps/div)" as adc
+    component "Memoria Interna" as memoria
+    component "Intérprete SCPI" as interprete
+    
+    adc --> memoria : Digitalización
+    memoria <.. interprete : Lectura de Buffer
+}
+
+node "Computadora Personal (PC)" as pc <<Host>> {
+    node "Entorno Python" as python {
+        component "Driver PyVISA\n(GWInstekGDS1000AU)" as driver
+        component "Núcleo Lógico de Software\n(Patrón MVP)" as core
+        
+        driver -up- core
+    }
+    
+    database "Almacenamiento Local" as storage {
+        artifact "01 Respaldo\n(*.csv)" as csv
+        artifact "02 Análisis de datos\n(*.h5)" as hdf5
+        artifact "03 Resultados\n(*.xlsx)" as pdf
+    }
+    
+    core ..> storage : I/O
+}
+
+divisor --> adc : Señal atenuada (CH1)\n[Cable Coaxial]
+shunt --> adc : Señal atenuada (CH2)\n[Cable Coaxial]
+interprete <-right-> driver : Bus USB\n[Comandos SCPI]
+
+@enduml

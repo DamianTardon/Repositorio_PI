@@ -1,0 +1,45 @@
+@startuml
+skinparam monochrome true
+skinparam linetype ortho
+skinparam componentStyle uml2
+
+package "GUI (Vista - PySide6)" {
+    [MainWindow] <<View>>
+    [Ui_MainWindow] <<Qt Designer>>
+    [MainWindow] -up-|> [Ui_MainWindow]
+}
+
+package "Orquestación (Presentador)" {
+    [MainPresenter] <<Presenter>>
+    [WaitWaveformThread] <<QThread>>
+    [MainPresenter] *-right- [WaitWaveformThread] : Lanza sub-hilo
+}
+
+package "Modelo (Backend Físico y Lógico)" {
+    [GWInstekGDS1000AU] <<HAL - PyVISA>>
+    [LightningImpulseAnalyzer] <<Math Engine>>
+    [FileManager] <<IO - HDF5/CSV>>
+    [ReportPDF] <<FPDF>>
+}
+
+package "Framework de Calibración (IEC 61083-2)" {
+    [Test Framework (Pytest)] <<Testing>>
+    [Test Cases Data] <<NamedTuple>>
+    [Test Framework (Pytest)] ..> [Test Cases Data] : Inyecta parámetros
+}
+
+' Relaciones de acoplamiento MVP
+[MainWindow] <--> [MainPresenter] : Signals / Slots (Eventos y UI)
+
+' Relaciones Presentador -> Modelo
+[WaitWaveformThread] --> [GWInstekGDS1000AU] : Polling de Trigger
+[MainPresenter] --> [GWInstekGDS1000AU] : Comandos SCPI
+[MainPresenter] --> [LightningImpulseAnalyzer] : Vectores de onda
+[MainPresenter] --> [FileManager] : Estructuras HDF5 / CSV
+
+' Relaciones de Testing
+[Test Framework (Pytest)] -up-> [LightningImpulseAnalyzer] : Ejecución de rutinas matemáticas
+[Test Framework (Pytest)] -up-> [ReportPDF] : Renderizado de resultados
+[Test Framework (Pytest)] -up-> [FileManager] : Lectura de ondas de calibración (TDG)
+
+@enduml

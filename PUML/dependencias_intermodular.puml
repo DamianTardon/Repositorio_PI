@@ -1,0 +1,41 @@
+@startuml
+skinparam monochrome true
+'skinparam linetype ortho
+skinparam componentStyle uml2
+
+package "Aplicación Principal" {
+    [main.py]
+}
+
+package "Capa de Presentación" {
+    [ui_graphic_user_interface.py]
+    [presenter.py]
+}
+
+package "Capa de Lógica" {
+    [impulse_analyzer.py]
+}
+
+package "Capa de Abstracción de Hardware" {
+    [gw_instek_gds1000a_u.py]
+}
+
+package "Capa de Persistencia" {
+    [file_manager.py]
+}
+
+' Orquestación principal
+[main.py] ..> [presenter.py] : Instancia
+[main.py] ..> [ui_graphic_user_interface.py] : Instancia
+[main.py] ..> [gw_instek_gds1000a_u.py] : Instancia
+[main.py] ..> [file_manager.py] : Instancia
+[main.py] ..> [impulse_analyzer.py] : Inyecta clase
+
+' Presentador y acoplamiento lógico
+[presenter.py] ...> [ui_graphic_user_interface.py] : Controla
+[presenter.py] ..> [gw_instek_gds1000a_u.py] : Envía comandos SCPI
+[presenter.py] ..> [file_manager.py] : Delega I/O
+[presenter.py] ...> [impulse_analyzer.py] : Instancia y evalúa
+
+
+@enduml

@@ -1,0 +1,70 @@
+@startuml
+skinparam monochrome true
+skinparam shadowing false
+
+actor "MainPresenter" as P
+participant "analyzer : LightningImpulseAnalyzer" as A
+
+P -> A : __init__(voltage_data, sampling_period, sigma_fit)
+activate A
+A --> P : Instancia generada
+deactivate A
+
+P -> A : ref_lightning_impulse()
+activate A
+
+A -> A : _remove_offset()
+activate A
+note right : Cálculo estadístico de ruido pre-trigger
+deactivate A
+
+A -> A : _polarity_normalization()
+activate A
+note right : Normalización al semiplano positivo
+deactivate A
+
+A -> A : _normalize_waveform()
+activate A
+note right : Escalamiento a 1.0 p.u.
+deactivate A
+
+A -> A : _cutting_signal()
+activate A
+note right : Segmentación entre 20% (frente) y 40% (cola)
+deactivate A
+
+A -> A : _fit_base_curve()
+activate A
+note right : Optimización no lineal Levenberg-Marquardt
+deactivate A
+
+A -> A : _construct_base_curve()
+activate A
+note right : Síntesis Curva base
+deactivate A
+
+A -> A : _calculate_residual_curve()
+activate A
+note right : Calculo Curva de residuos
+deactivate A
+
+A -> A : _filter_to_residual()
+activate A
+note right : Filtro IIR de fase cero
+deactivate A
+
+A -> A : _construct_test_voltage_curve()
+activate A
+note right : Síntesis Curva de ensayo
+deactivate A
+
+A -> A : _calculate_parameters()
+activate A
+A -> A : _calc_front_parameters(Ut)
+A -> A : _calc_tail_parameter(Ut, O1)
+note right : Asignación final de Ut, T1, T2 y OS
+deactivate A
+
+A --> P : Retorno (diccionario self.results actualizado)
+deactivate A
+@enduml

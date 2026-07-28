@@ -1,0 +1,83 @@
+@startuml
+skinparam monochrome true
+skinparam linetype ortho
+
+[*] --> Inicialización : Inicialización (__init__)
+
+state Inicialización {
+  Datos_originales : raw_voltage
+  Datos_originales : time_axis
+}
+
+Inicialización --> Offset_eliminado : _remove_offset()
+Offset_eliminado : offset_value
+Offset_eliminado : zeroed_curve
+
+Offset_eliminado --> Polaridad_positiva : _polarity_normalization()
+Polaridad_positiva : factor
+Polaridad_positiva : zeroed_curve_abs
+Polaridad_positiva : peak_value
+
+Polaridad_positiva --> Onda_normalizada_unitaria : _normalize_waveform()
+Onda_normalizada_unitaria : norm_voltage
+
+state "Bifurcación de Análisis (LI vs LIC)" as AnalysisBranch {
+
+  Onda_normalizada_unitaria --> Tiempo_alineado : lightning_impulse(ref_analyzer)\n[Análisis Dual]
+  Tiempo_alineado : t_L
+  Tiempo_alineado : aligned_time_axis
+  Tiempo_alineado --> Buscar_corte : _find_deviation_point()
+  Buscar_corte : idx_deviation
+  Buscar_corte : impulse_type (full | chopped)
+
+  state "Clasificación Dinámica" as ClassificationBranch{
+
+  ' Rama de Impulso Cortado / Análisis Relacional
+    Buscar_corte --> Enmascarado_de_datos : [impulse_type == "chopped"]
+    Enmascarado_de_datos : chopped_front_voltage
+    Enmascarado_de_datos --> Factor_de_amplitud : _find_amplitude_ratio()
+    Factor_de_amplitud : E (Factor escalar)
+    Factor_de_amplitud --> Curva_base_escalada : _scale_base_curve()
+    Curva_base_escalada : base_curve
+    Curva_base_escalada : Ub
+    Curva_base_escalada --> Instante_de_corte : _find_chopping_instant()
+    Instante_de_corte : U_collapse
+    Instante_de_corte : Tcutting_moment
+
+    ' Rama de Impulso Pleno (Referencia)
+    Buscar_corte --> Señal_segmentada : [impulse_type == "full"]
+    Onda_normalizada_unitaria --> Señal_segmentada : ref_lightning_impulse()\n[Impulso Pleno]
+    Señal_segmentada : start_slice
+    Señal_segmentada : end_slice
+    Señal_segmentada --> Curva_base_ajustada : _fit_base_curve()
+    Curva_base_ajustada : fitted_params (Levenberg-Marquardt)
+    Curva_base_ajustada --> Curva_base_construida : _construct_base_curve()
+    Curva_base_construida : base_curve
+    Curva_base_construida : Ub
+  }
+}
+
+' Convergencia del procesamiento
+state "Reconstrucción y Filtrado" as FilteringPhase {
+  Curva_base_construida --> Curva_residual
+  Instante_de_corte --> Curva_residual
+  
+  Curva_residual : residual_curve
+  Curva_residual --> Curva_residual_filtrada : _filter_to_residual()
+  Curva_residual_filtrada : filtered_residual (Filtro IIR Fase Cero)
+  
+  Curva_residual_filtrada --> Curva_de_ensayo : _construct_test_voltage_curve()
+  Curva_de_ensayo : test_voltage_curve
+  Curva_de_ensayo : test_voltage_curve_abs
+  Curva_de_ensayo : Ut
+}
+
+Curva_de_ensayo --> Parametros_calculados : _calculate_parameters()
+Parametros_calculados : results["T1"]
+Parametros_calculados : results["T2"]
+Parametros_calculados : results["OS"]
+Parametros_calculados : results["Ut"]
+
+Parametros_calculados --> [*] : Fin del análisis numérico
+
+@enduml

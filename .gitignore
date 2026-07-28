@@ -13,6 +13,9 @@ dist/
 *.onefile-build/
 
 # Documentación (borrador)
-doc1/
+docs/
+html/
+latex/
 Temporal.txt
 Comentarios.txt
+Doxyfile

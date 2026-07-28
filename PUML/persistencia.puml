@@ -1,0 +1,65 @@
+@startuml
+skinparam monochrome true
+
+|GUI / Operador|
+start
+:Acciona "Guardar";
+
+|MainPresenter|
+if (¿Proyecto creado/cargado?) then (No)
+  :Advertir: Proyecto nulo;
+  stop
+else (Sí)
+endif
+
+if (¿Condiciones ambientales \ncompletas?) then (No)
+  :Advertir: Datos faltantes;
+  stop
+else (Sí)
+endif
+
+if (¿Buffer de adquisición cargado?) then ((No)
+  :Advertir: Buffer vacío;
+  stop
+else (Sí)
+endif
+
+:Determinar tipo \n(Referencia u Onda);
+:Incrementar contador \n(Referencia u Onda);
+:Generar marca de tiempo;
+:Empaquetar datos\n(global, wave, \ntime, CH1, CH2);
+
+|FileManager|
+:Añadir a Base de datos;
+:Abrir o crear archivo HDF5\n en modo 'añadir';
+:Sanitizar metadatos;
+:Crear/Retornar Grupo de onda;
+:Escribir atributos globales;
+:Escribir atributos de onda;
+
+fork
+  :Crear/Redimensionar\narreglo "Time";
+  :Guardar dataset;
+  :Guardar respaldo;
+fork again
+  :Crear/Redimensionar\narreglo"CH1_Voltage";
+  :Guardar dataset;
+  :Guardar respaldo;
+fork again
+  if (¿CH2 activo?) then (Sí)
+    :Crear/Redimensionar\narreglo"CH2_Current";
+    :Guardar dataset;
+    :Guardar respaldo;
+  else (No)
+  endif
+end fork
+
+|MainPresenter|
+:Actualizar GUI\n(Gráficos, Resultados, Menú);
+:Sincronizar menú de visibilidad;
+:Vaciar buffer temporal;
+:Renderizar las ondas;
+:Desplegar notificación de éxito;
+
+stop
+@enduml

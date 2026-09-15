@@ -1,0 +1,33 @@
+@startuml
+
+
+skinparam package {
+    BackgroundColor #FFF9C4
+    BorderColor #FBC02D
+    FontColor #333333
+    FontStyle bold
+}
+
+skinparam rectangle {
+    BorderColor #555555
+    FontColor #111111
+}
+
+package "Computadora" {
+    rectangle "Aplicación\n(Python, LabVIEW, C++, etc.)" as App #C8E6C9
+    rectangle "SCPI" as SCPI #FFCDD2
+    rectangle "VISA" as VISA #BBDEFB
+
+    App --> SCPI
+    SCPI --> VISA
+}
+
+rectangle "Osciloscopio" as Inst1 #ECEFF1
+rectangle "Fuente de \nalimentación" as Inst2 #ECEFF1
+rectangle "Multímetro" as Inst3 #ECEFF1
+
+VISA --> Inst1 : USB
+VISA --> Inst2 : LAN
+VISA --> Inst3 : RS232 \n(Serial)
+
+@enduml

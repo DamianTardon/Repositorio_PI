@@ -18,6 +18,10 @@ import os
 # Importaciones exclusivas para el tipado estático en la documentación.
 from typing import Union, Tuple, Optional, Any, Dict
 
+
+AD_FACTOR: float = 25.0
+r"""Factor de conversión vertical del ADC de la serie GW Instek GDS 1000AU.
+"""
 # Constantes de Configuración.
 HDF5_DATASET_MAP: Dict[str, Dict[str, str]] = {
     "Time": {
@@ -54,9 +58,9 @@ class FileManager:
     jerárquica HDF5.
 
     Attributes:
-        ADC_STEPS_PER_DIV (float): Constante de cuantización vertical 
-            del conversor ADC, específica de la serie GW Instek 
-            GDS-1000A-U (:math:`\num{25.0}` pasos por división).
+        AD_FACTOR (float): Factor de conversión vertical del ADC, 
+            específica de la serie GW Instek GDS-1000A-U 
+            (:math:`\num{25.0}` pasos por división).
         base (Path): Ruta absoluta al directorio raíz del proyecto de 
             ensayo actual.
         raw (Path): Subdirectorio asignado a las copias de seguridad de 
@@ -67,11 +71,6 @@ class FileManager:
             archivos exportados ('03 Resultados').
     """
 
-
-    ADC_STEPS_PER_DIV: float = 25.0
-    r"""Constante de cuantización vertical del ADC de la serie 
-    GW Instek GDS 1000AU.
-    """
 
     def __init__(self, project_name: str = "item-año - cliente") -> None:
         r"""Inicializa los apuntadores de ruta predeterminados asumiendo 
@@ -179,8 +178,8 @@ class FileManager:
         data: Union[dict, list, np.ndarray], 
         file_path: Union[str, Path]
     ) -> None:
-        r"""Exporta copias planas de seguridad de los arreglos discretos 
-        analógicos en disco.
+        r"""Exporta copias de seguridad en texto plano de los arreglos 
+        discretos en disco.
 
         Args:
             data (Union[dict, list, np.ndarray]): Arreglo de amplitudes 
@@ -207,14 +206,14 @@ class FileManager:
 
         Returns:
             np.ndarray: Vector analógico de amplitudes escalado por 
-                :attr:`ADC_STEPS_PER_DIV`.
+                :attr:`AD_FACTOR`.
             
         Raises:
             FileNotFoundError: Si la ruta especificada no existe en el disco.
         """
         # dtype='>i2': Big Endian (>), 2 bytes int (i2).
         raw_data = np.fromfile(file_path, dtype='>i2')
-        waveform = raw_data / FileManager.ADC_STEPS_PER_DIV
+        waveform = raw_data / FileManager.AD_FACTOR
         return waveform
 
     @staticmethod
@@ -232,8 +231,8 @@ class FileManager:
             Implementa una validación de integridad: advierte por 
             consola si el tamaño real de los bytes leídos del buffer no 
             coincide con lo indicado en el encabezado. Los datos son 
-            convertidos a tensión dividiendo por la constante de clase 
-            :math:`\num{25.0}` (:attr:`ADC_STEPS_PER_DIV`).
+            convertidos a tensión dividiendo por el Factor AD del equipo 
+            :math:`\num{25.0}` (:attr:`AD_FACTOR`).
 
         Args:
             file_path (Union[str, Path]): Ruta del archivo.
@@ -286,7 +285,7 @@ class FileManager:
                 )
 
             raw_data = np.frombuffer(raw_bytes, dtype='>i2')
-            waveform = raw_data / ADC_STEPS_PER_DIV
+            waveform = raw_data / AD_FACTOR
 
         return waveform, dt
 

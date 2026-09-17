@@ -9,7 +9,7 @@ node "Montaje de Ensayo (Alta Tensión)" as ensayo {
 }
 
 node "Osciloscopio Digital\n(GW Instek GDS-1000A-U)" as osciloscopio <<Instrument>> {
-    component "Conversor A/D\n(25 steps/div)" as adc
+    component "Conversor A/D" as adc
     component "Memoria Interna" as memoria
     component "Intérprete SCPI" as interprete
     

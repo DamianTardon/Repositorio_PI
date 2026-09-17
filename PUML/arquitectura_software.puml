@@ -10,36 +10,23 @@ package "GUI (Vista - PySide6)" {
 }
 
 package "Orquestación (Presentador)" {
-    [MainPresenter] <<Presenter>>
+    [MainPresenter] <<Presentador>>
     [WaitWaveformThread] <<QThread>>
-    [MainPresenter] *-right- [WaitWaveformThread] : Lanza sub-hilo
+    [MainPresenter] *-- [WaitWaveformThread] : Lanza \nsub-hilo
 }
 
 package "Modelo (Backend Físico y Lógico)" {
     [GWInstekGDS1000AU] <<HAL - PyVISA>>
-    [LightningImpulseAnalyzer] <<Math Engine>>
+    [LightningImpulseAnalyzer] <<Motor matemático>>
     [FileManager] <<IO - HDF5/CSV>>
-    [ReportPDF] <<FPDF>>
-}
-
-package "Framework de Calibración (IEC 61083-2)" {
-    [Test Framework (Pytest)] <<Testing>>
-    [Test Cases Data] <<NamedTuple>>
-    [Test Framework (Pytest)] ..> [Test Cases Data] : Inyecta parámetros
 }
 
 ' Relaciones de acoplamiento MVP
-[MainWindow] <--> [MainPresenter] : Signals / Slots (Eventos y UI)
+[MainWindow] <---> [MainPresenter] : Signals / Slots\n (Eventos y UI)
 
 ' Relaciones Presentador -> Modelo
-[WaitWaveformThread] --> [GWInstekGDS1000AU] : Polling de Trigger
-[MainPresenter] --> [GWInstekGDS1000AU] : Comandos SCPI
-[MainPresenter] --> [LightningImpulseAnalyzer] : Vectores de onda
-[MainPresenter] --> [FileManager] : Estructuras HDF5 / CSV
-
-' Relaciones de Testing
-[Test Framework (Pytest)] -up-> [LightningImpulseAnalyzer] : Ejecución de rutinas matemáticas
-[Test Framework (Pytest)] -up-> [ReportPDF] : Renderizado de resultados
-[Test Framework (Pytest)] -up-> [FileManager] : Lectura de ondas de calibración (TDG)
-
+[WaitWaveformThread] ---> [GWInstekGDS1000AU] : Polling \nde Trigger
+[MainPresenter] --> [GWInstekGDS1000AU] : Comandos\nSCPI
+[MainPresenter] --> [LightningImpulseAnalyzer] : Vectores\nde onda
+[MainPresenter] --> [FileManager] : Estructuras\nHDF5 / CSV
 @enduml

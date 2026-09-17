@@ -48,7 +48,7 @@ class MockChannel2Analyzer:
     analizador principal.
 
     Attributes:
-        raw_voltage (np.ndarray): Array crudo de corriente registrado.
+        raw_voltage (np.ndarray): Array bruto de corriente registrado.
         time_axis (np.ndarray): Vector de tiempo base del impulso.
         aligned_time_axis (Optional[np.ndarray]): Vector de tiempo 
             alineado para sincronización en gráficos.
@@ -74,7 +74,7 @@ class MockChannel2Analyzer:
             captura una señal completamente nula (plana).
 
         Args:
-            waveform (Union[list, np.ndarray]): Datos crudos del canal 2.
+            waveform (Union[list, np.ndarray]): Datos brutos del canal 2.
             dt (float): Periodo de muestreo del instrumento en 
                 :math:`\unit{\second}`.
         """
@@ -132,9 +132,9 @@ class WaitWaveformThread(QThread):
         .. note::
             El bucle de sondeo incorpora una pausa de 
             :math:`\qty{200}{\milli\second}` (``time.sleep(0.2)``) por 
-            cada iteración. Esto es vital para evitar que el hilo 
-            consuma recursos innecesarios del procesador (CPU) mientras 
-            espera el evento físico en el instrumento.
+            cada iteración, para evitar que el hilo consuma recursos 
+            innecesarios del procesador (CPU) mientras espera el evento 
+            físico en el instrumento.
         """
         try:
             # Armar el disparo único.
@@ -174,7 +174,7 @@ class MainPresenter(QObject):
         pending_analyzers (Dict[int, Dict[str, Any]]): Buffer de 
             analizadores recién adquiridos sin guardar.
         last_acquired_data (Dict[int, Tuple[Any, np.ndarray, np.ndarray, float]]): 
-            Buffer crudo con las tuplas 
+            Buffer bruto con las tuplas 
             `(inBuffer, waveform, real_waveform, dt)` 
             recién adquiridas por canal.
         wave_count (int): Contador de impulsos de ensayo procesados.
@@ -645,7 +645,7 @@ class MainPresenter(QObject):
                 y_ch2 = wave.get("ch2_real")
 
             # Canal 1 (Línea continua - Eje Izquierdo)
-            pen_ch1 = pg.mkPen(color=color, width=2)
+            pen_ch1 = pg.mkPen(color=color, width=4)
             self.ui.graph_view.plot(
                 t, y_ch1, name=f"{name} (CH1)", pen=pen_ch1
             )
@@ -653,7 +653,7 @@ class MainPresenter(QObject):
             # Canal 2 (Línea punteada - Eje Derecho)
             if y_ch2 is not None:
                 pen_ch2 = pg.mkPen(
-                    color=color, width=2, style=Qt.DashLine
+                    color=color, width=4, style=Qt.DashLine
                 )
 
                 # Crear curva, añadir al Eje Derecho y en la leyenda.
@@ -690,9 +690,10 @@ class MainPresenter(QObject):
                 pen_color = (200, 0, 0) # Rojo para error.
                 legend_name = f"Error (CH{ch})"
 
-            # Dibujar la curva en el lienzo, más gruesa para destacar.
+            # Dibujar la onda capturada pendiente de almacenamiento.
             if t_axis is not None and y_data is not None:
-                pen = pg.mkPen(color=pen_color, width=3)
+                # Curva más gruesa para destacar.
+                pen = pg.mkPen(color=pen_color, width=5) 
                 
                 if ch == 1:
                     # CH1 al eje izquierdo normal.
@@ -988,9 +989,8 @@ class MainPresenter(QObject):
                     display_name = f"{parts[0]}_{parts[1]}"
                 else:
                     display_name = h5_name
-
-                color = pg.intColor(self.color_index, hues=15, maxValue=200)
-                self.color_index += 1
+                print(f"DEBUG - Index entrante: {self.color_index}")
+                color = self._get_next_color()
 
                 self.saved_waves_data[display_name] = {
                     "t": data["t"],
@@ -1090,7 +1090,7 @@ class MainPresenter(QObject):
         r"""Slot ejecutado tras la detección exitosa de un disparo 
         emitido desde el hardware. 
 
-        Descarga la memoria cruda de los canales habilitados, aplica 
+        Descarga la memoria bruta de los canales habilitados, aplica 
         atenuadores y delega el análisis. Si no se encuentra ningún 
         canal activo pre-seleccionado, despliega un aviso interrumpiendo 
         la lógica.
@@ -1211,7 +1211,7 @@ class MainPresenter(QObject):
         r"""Valida, empaqueta y persiste el evento de captura de onda, 
         actualizando el lienzo del historial.
 
-        Guarda el objeto estructurado HDF5, exporta un CSV crudo como 
+        Guarda el objeto estructurado HDF5, exporta un CSV bruto como 
         backup y transfiere la traza exitosa al buffer 
         (``saved_waves_data``) añadiéndola al menú de visibilidad 
         gráfico. Requiere de la creación explícita de un proyecto previo 
@@ -1360,8 +1360,7 @@ class MainPresenter(QObject):
             if self.ref_analyzer is None:
                 self.ref_analyzer = analyzer_ch1
 
-            color = pg.intColor(self.color_index, hues=15, maxValue=200)
-            self.color_index += 1
+            color = self._get_next_color()
 
             if analyzer_ch1.aligned_time_axis is not None:
                 t_data_plot = analyzer_ch1.aligned_time_axis
@@ -1417,7 +1416,7 @@ class MainPresenter(QObject):
         la traza discreta.
 
         Args:
-            waveform (np.ndarray): Array crudo discreto de la señal en 
+            waveform (np.ndarray): Array bruto discreto de la señal en 
                 :math:`\unit{\volt}`.
             channel (int): Canal a atenuar (1 o 2).
 
@@ -1890,3 +1889,24 @@ class MainPresenter(QObject):
                 "Asegúrese de que el archivo no esté abierto en otro programa."
             )
             QMessageBox.critical(None, "Error al exportar", msg)
+
+    def _get_next_color(self) -> pg.QtGui.QColor:
+        r"""Genera dinámicamente el color de la curva iterando el puntero 
+        interno sobre el espacio HSV discretizado.
+
+        Returns:
+            pg.QtGui.QColor: Objeto de color mapeado según los parámetros 
+                vigentes para la representación de ondas.
+        """
+        color = pg.intColor(
+            self.color_index,
+            hues=7,
+            values=2,
+            maxValue=250,
+            minValue=230,
+            maxHue=360,
+            minHue=0,
+            sat=255,
+        )
+        self.color_index += 1
+        return color

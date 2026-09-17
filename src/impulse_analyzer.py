@@ -841,7 +841,7 @@ class LightningImpulseAnalyzer:
 
     def _find_deviation_point(self, 
                               ref_analyzer: LightningImpulseAnalyzer, 
-                              threshold: float = 0.02) -> None:
+                              threshold: float = 0.5) -> None:
         r"""Clasificador dinámico que detecta la existencia de una 
         descarga disruptiva.
 

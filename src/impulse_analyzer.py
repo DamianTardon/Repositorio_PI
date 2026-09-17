@@ -785,7 +785,7 @@ class LightningImpulseAnalyzer:
     def _find_time_lag(self, 
                        ref_analyzer: LightningImpulseAnalyzer) -> None:
         r"""Calcula el desfase sub-muestral :math:`t_L` entre el 
-        impulso cortado y la referencia plena.
+        impulso nuevo y la referencia plena.
 
         Como parte de la máquina de estados, actualiza el atributo: 
         ``self.t_L``.

@@ -5,6 +5,9 @@ echo ========================================================
 echo Iniciando compilacion Nuitka
 echo ========================================================
 
+REM Forzar al compilador de C a generar codigo compatible con CPU generica x86-64
+set "CCFLAGS=-march=x86-64 -mtune=generic"
+
 REM 1. Nombre de la carpeta contenedora.
 set "FOLDER=Nuitka_Build"
 
@@ -16,15 +19,19 @@ echo Compilando...
 echo.
 
 REM 3. Ejecutar.
-python -m nuitka --standalone --disable-console --enable-plugin=pyside6 ^
---include-package=pyvisa_py ^
---include-package=serial ^
---include-module=PySide6.QtOpenGL ^
---include-module=PySide6.QtOpenGLWidgets ^
---assume-yes-for-downloads ^
---output-dir=%FOLDER% ^
---output-filename="Analizador_Impulsos_v3_Nuitka.exe" ^
-..\src\main.py
+python -m nuitka --standalone --windows-console-mode=disable ^
+ --target-arch=x86_64 ^
+ --lto=no ^
+ --nofollow-import-to=pytest ^
+ --enable-plugin=pyside6 ^
+ --include-package=pyvisa_py ^
+ --include-package=serial ^
+ --include-module=PySide6.QtOpenGL ^
+ --include-module=PySide6.QtOpenGLWidgets ^
+ --assume-yes-for-downloads ^
+ --output-dir=%FOLDER% ^
+ --output-filename="Analizador_Impulsos_v3_Nuitka.exe" ^
+ ..\src\main.py
 
 echo.
 echo ========================================================

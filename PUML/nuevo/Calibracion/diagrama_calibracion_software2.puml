@@ -1,0 +1,56 @@
+@startuml
+skinparam linetype ortho
+hide empty members
+hide empty description
+
+package "Fuentes de Referencia Patrón (IEC 61083-2)" {
+  [Archivos TDG (Test Data Generator)] as ArchivosTDG
+  [Metadatos y Valores de Referencia (x_REF, U_x)] as ValoresReferencia
+}
+
+package "Módulo de Calibración y Orquestación" {
+  component [Inyector y Runner de Ensayos (Pytest)] as TestRunner
+  component [Gestor de Archivos de Prueba (FileManager)] as GestorTDG
+  component [Colector de Resultados y Desviaciones] as Colector
+}
+
+package "Motor de Cálculo Evaluado" {
+  component [Analizador de Impulsos (LightningImpulseAnalyzer)] as Analizador
+}
+
+package "Cálculo Metrológico de Incertidumbre" {
+  component [Verificador de Límites de Aceptación] as VerificadorTolerancias
+  component [Calculador de Incertidumbre u_B71 (Software)] as uB71Calc
+  component [Calculador de Incertidumbre u_B72 (Patrón TDG)] as uB72Calc
+  component [Calculador de Incertidumbre Combinada u_B7] as uB7Calc
+}
+
+package "Emisión de Documentación Normativa" {
+  component [Generador de Reportes PDF (ReportPDF)] as Reportador
+  file "Informe_Calibracion_IEC61083_2.pdf" as CertificadoPDF
+}
+
+' TODO: Casos de prueba de impulso cortado en el frente (LIC-A1 a LIC-M3) pendientes de implementación algorítmica.
+
+ArchivosTDG --> GestorTDG : "Lectura de registro digital (tensión e intervalo)"
+GestorTDG --> TestRunner : "Vectores de datos y metadatos de onda"
+ValoresReferencia --> Colector : "Suministrar valores patrón (x_REF) e incertidumbres (U_x)"
+
+TestRunner --> Analizador : "Inyectar señal de prueba (LI de 29 casos / LIC de 2 casos)"
+Analizador --> Colector : "Entregar parámetros calculados (Ut, T1, T2/Tc, OS)"
+
+Colector --> VerificadorTolerancias : "Comparar desvíos relativas con tolerancias (Anexo A)"
+VerificadorTolerancias --> Colector : "Validar conformidad de límites de aceptación"
+
+Colector --> uB71Calc : "Evaluar desvío máximo del algoritmo (Distribución Rectangular)"
+Colector --> uB72Calc : "Evaluar máxima incertidumbre expandida del patrón (Anexo B)"
+
+uB71Calc --> uB7Calc : "Incertidumbre Tipo A (u_B71)"
+uB72Calc --> uB7Calc : "Incertidumbre Tipo B (u_B72)"
+
+uB7Calc --> Colector : "Incertidumbre combinada estándar u_B7 = sqrt(u_B71^2 + u_B72^2)"
+
+Colector --> Reportador : "Compilar metadatos, tablas de resultados e incertidumbres"
+Reportador --> CertificadoPDF : "Renderizar y exportar Certificado de Calibración"
+
+@enduml

@@ -1,0 +1,26 @@
+@startuml
+hide empty members
+hide empty description
+skinparam linetype ortho
+
+package "Modelo-Vista-Controlador (MVC)" {
+    class "Vista (MVC)" as Vista_MVC {
+        + presentar_interfaz()
+        + capturar_evento_usuario()
+    }
+    class "Controlador" as Controlador {
+        + gestionar_entrada_usuario()
+        + actualizar_vista()
+    }
+    class "Modelo (MVC)" as Modelo_MVC {
+        + procesar_datos()
+        + realizar_calculos()
+        + tomar_decisiones()
+    }
+
+    Vista_MVC --> Controlador : envía eventos de entrada
+    Controlador --> Modelo_MVC : invoca lógica de negocio
+    Controlador --> Vista_MVC : actualiza presentación
+    Modelo_MVC ..> Vista_MVC : notifica cambios de estado
+}
+@enduml

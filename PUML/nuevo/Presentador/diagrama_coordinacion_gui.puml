@@ -1,0 +1,48 @@
+@startuml
+skinparam linetype ortho
+hide empty members
+hide empty description
+
+package "Capa de Visualización (Vista Pasiva / GUI)" {
+  package "Bloques de Captura de Datos y Configuración" {
+    component [Formulario de Datos del Ensayo] as FE
+    component [Formulario de Condiciones Ambientales] as FA
+    component [Formulario de Atenuaciones de Medición] as FM
+    component [Panel de Control del Osciloscopio] as CO
+    component [Panel de Opciones de Ensayo] as OE
+    component [Controles de Visibilidad y Escala] as CV
+  }
+
+  package "Bloques de Salida y Visualización" {
+    component [Área de Gráficos de Ondas] as GO
+    component [Tabla de Resultados Numéricos] as TR
+  }
+}
+
+package "Capa de Coordinación (Presentador Central)" {
+  component [Receptor de Eventos e Interacciones] as GE
+  component [Validador de Entrada y Estado de Sesión] as VE
+  component [Inyector y Actualizador Reactivo] as AR
+  component [Controlador de Capas Visuales] as GV
+}
+
+' Relaciones de eventos de la Vista al Presentador
+FE --> GE : emitir evento de modificación de datos del ensayo
+FA --> GE : emitir evento de actualización de parámetros ambientales
+FM --> GE : emitir evento de configuración de atenuaciones
+CO --> GE : emitir evento de ajuste de parámetros del instrumento
+OE --> GE : emitir evento de comandos de ensayo (iniciar, guardar, exportar)
+CV --> GV : emitir evento de cambio en casillas de visibilidad o escala
+
+' Flujos de coordinación interna del Presentador
+GE --> VE : evaluar datos de entrada y restricciones operativas
+VE --> AR : transferir datos validados para procesamiento e inyección
+
+' Relaciones de actualización del Presentador a la Vista
+AR --> GO : inyectar vectores de onda procesados (tensión y corriente)
+AR --> TR : actualizar indicadores de parámetros característicos (Ut, T1, T2, OS%)
+GV --> GO : modificar visibilidad instantánea de trazas y modo de visualización
+
+' TODO: Corrección atmosférica automática de la tensión de ensayo Ut según IEC 60060-1 (requerida por teoría pero realizada manualmente por el operador en el software)
+
+@enduml

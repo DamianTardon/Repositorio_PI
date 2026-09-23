@@ -1,0 +1,42 @@
+@startuml
+autonumber
+skinparam responseMessageBelowArrow true
+
+actor "Operador" as Operador
+participant "Interfaz Gráfica (Vista)" as Vista
+participant "Presentador Central" as Presentador
+participant "Gestor de Archivos (FileManager)" as GestorArchivos
+database "Base de Datos Jerárquica (HDF5)" as HDF5
+participant "Resguardo Redundante (CSV)" as CSV
+
+Operador -> Vista : Solicitar guardado de ensayo
+activate Vista
+
+Vista -> Presentador : Transferir metadatos de usuario y solicitud de persistencia
+activate Presentador
+
+Presentador -> Presentador : Validar metadatos e integridad de la onda procesada
+
+Presentador -> GestorArchivos : Ordenar almacenamiento de ensayo (forma de onda, parámetros y entorno)
+activate GestorArchivos
+
+GestorArchivos -> HDF5 : Escribir estructura de datos y vectores de señal (compresión GZIP)
+activate HDF5
+HDF5 --> GestorArchivos : Confirmar persistencia en base de datos
+deactivate HDF5
+
+GestorArchivos -> CSV : Generar resguardo tabular de respaldo
+activate CSV
+CSV --> GestorArchivos : Confirmar generación de archivo CSV
+deactivate CSV
+
+GestorArchivos --> Presentador : Notificar almacenamiento exitoso
+deactivate GestorArchivos
+
+Presentador -> Vista : Notificar finalización de guardado
+deactivate Presentador
+
+Vista --> Operador : Mostrar mensaje de confirmación de guardado en pantalla
+deactivate Vista
+
+@enduml

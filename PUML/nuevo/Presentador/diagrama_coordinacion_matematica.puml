@@ -1,0 +1,42 @@
+@startuml
+skinparam linetype ortho
+hide empty members
+hide empty description
+
+' TODO: Corrección atmosférica de la tensión de ensayo (Ut) según IEC 60060-1 no implementada automáticamente en el software (realizada manualmente por el operador técnico).
+
+package "Capa de Presentación (Vista)" {
+  component [Interfaz Gráfica (GUI)] as GUI
+}
+
+package "Capa de Coordinación" {
+  component [Presentador Central] as Presentador
+}
+
+package "Modelo: Motor de Cálculo y Procesamiento Digital" {
+  component [Módulo de Escalamiento Físico] as Escalador
+  component [Acondicionador Inicial y Clasificador] as Acondicionador
+  component [Ajustador Numérico (Levenberg-Marquardt)] as Ajustador
+  component [Sintetizador y Filtro Digital (IIR)] as FiltroSintetizador
+  component [Calculador de Parámetros Normativos] as Calculador
+}
+
+GUI --> Presentador : "Proveer factores de atenuación\n(divisor resistivo y shunt)"
+Presentador --> Escalador : "Enviar vectores de datos brutos (RAW)"
+Escalador --> Acondicionador : "Entregar ondas escaladas a magnitudes reales (V, A)"
+
+Acondicionador --> Acondicionador : "1. Eliminar offset continua (pre-trigger)\n2. Normalizar polaridad y amplitud\n3. Clasificar impulso (pleno LI vs. cortado LIC)"
+Acondicionador --> Ajustador : "Transferir onda normalizada para ajuste"
+
+Ajustador --> Ajustador : "4. Ajuste no lineal Levenberg-Marquardt\n   (función doble exponencial)\n5. Detectar tiempo de corte (Tc) si es LIC"
+Ajustador --> FiltroSintetizador : "Suministrar curva base ajustada (Ub) y corregida"
+
+FiltroSintetizador --> FiltroSintetizador : "6. Calcular curva residual R[n]\n7. Aplicar filtro IIR de fase cero (Rf[n])\n8. Sintetizar curva de ensayo Ut[n] = Ub[n] + Rf[n]"
+FiltroSintetizador --> Calculador : "Transferir curva de ensayo sintetizada Ut[n]"
+
+Calculador --> Calculador : "9. Extraer parámetros IEC 60060-1 / IEC 61083-2\n   (tensión de cresta Ut, tiempo de frente T1,\n   tiempo de cola T2 / corte Tc, sobreimpulso OS%)"
+Calculador --> Presentador : "Retornar parámetros característicos\ny vectores de curvas procesadas"
+
+Presentador --> GUI : "Inyectar valores numéricos en indicadores\ny renderizar curvas en pantalla"
+
+@enduml

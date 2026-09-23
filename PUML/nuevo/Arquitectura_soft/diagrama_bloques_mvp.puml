@@ -1,0 +1,56 @@
+@startuml
+hide empty members
+hide empty description
+skinparam linetype ortho
+skinparam packageStyle rectangle
+
+package "Vista (UI)" {
+  component "GUI (PySide6 / Qt)" as GUI
+  component "Capturador de Eventos" as Eventos
+  component "Renderizador de Graficos y Tablas" as Render
+}
+
+package "Presentador" {
+  component "Coordinador Central" as PresentadorComp
+  component "Validador de Entrada y Sesion" as Validador
+}
+
+package "Modelo" {
+  package "Controlador de Hardware" {
+    component "Capa de Abstraccion de Hardware (HAL)" as HAL
+    component "Driver SCPI / PyVISA" as VISA
+  }
+  
+  package "Motor de Calculo" {
+    component "Acondicionador de Signal" as Preprocesamiento
+    component "Ajustador Levenberg-Marquardt" as LMEngine
+    component "Procesador Normativo (IEC 60060-1)" as EvaluadorNormativo
+  }
+  
+  package "Persistencia de Datos" {
+    component "Gestor Base de Datos (HDF5)" as GestorHDF5
+    component "Exportador de Resultados (CSV / XLSX)" as Exportador
+    component "Resguardo Redundante (CSV)" as Resguardo
+  }
+}
+
+' Relaciones de comunicación
+GUI --> Eventos : emite acciones
+Eventos --> PresentadorComp : notifica eventos
+PresentadorComp --> Validador : ejecuta validaciones
+PresentadorComp --> GUI : actualiza vistas e indicadores
+Render <-- PresentadorComp : inyecta formas de onda y tablas
+
+PresentadorComp --> HAL : configura y solicita captura
+HAL --> VISA : envia comandos SCPI
+HAL ..> PresentadorComp : retorna datos brutos (RAW)
+
+PresentadorComp --> Preprocesamiento : transfiere datos brutos y atenuaciones
+Preprocesamiento --> LMEngine : pasa curva corregida
+LMEngine --> EvaluadorNormativo : calcula parametros base
+EvaluadorNormativo --> PresentadorComp : retorna parametros (Ut, T1, T2, OS%)
+
+PresentadorComp --> GestorHDF5 : delega guardado de sesion y ondas
+PresentadorComp --> Exportador : solicita exportacion
+GestorHDF5 --> Resguardo : genera copia de respaldo
+@enduml

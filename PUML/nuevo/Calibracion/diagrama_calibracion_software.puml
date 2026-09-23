@@ -1,0 +1,38 @@
+@startuml
+skinparam linetype ortho
+hide empty members
+hide empty description
+
+package "Conjunto de Datos de Referencia (IEC 61083-2)" {
+  component [Generador de Ondas Sintéticas (TDG / TDG7)] as TDG
+  component [Base de Datos de Parámetros Certificados] as ParamCert
+}
+
+package "Motor de Cálculo Numérico (Modelo)" {
+  component [Analizador de Impulsos Atmosféricos] as Analizador
+  component [Acondicionador de Señal y Filtro Digital] as Filtro
+  component [Extractor de Parámetros Normativos] as Extractor
+}
+
+package "Módulo de Calibración y Evaluación" {
+  component [Comparador de Parámetros y Errores Relativos] as Comparador
+  component [Verificador de Tolerancias Normativas] as Verificador
+  component [Emisor de Certificado de Calibración] as EmisorCert
+}
+
+' TODO: Implementar la suite automatizada de carga de vectores sintéticos TDG7 para la calibración del software según IEC 61083-2.
+' TODO: Implementar el generador automático de certificados PDF de calibración con resumen de incertidumbres y desviaciones máximas permitidas.
+
+TDG --> Analizador : "Inyectar vector numérico de tensión sintética\ny período de muestreo"
+ParamCert --> Comparador : "Suministrar valores de referencia certificados\n(Ut_ref, T1_ref, T2_ref, OS_ref)"
+
+Analizador --> Filtro : "Eliminar offset, normalizar polaridad\ny aplicar filtrado de fase cero"
+Filtro --> Extractor : "Entregar curva de tensión de ensayo sintetizada"
+Extractor --> Analizador : "Retornar diccionario de resultados calculados\n(Ut, T1, T2, OS)"
+
+Analizador --> Comparador : "Transferir parámetros calculados por el software"
+Comparador --> Verificador : "Suministrar errores relativos calculados (% error)"
+Verificador --> EmisorCert : "Confirmar cumplimiento de tolerancias normativas\n(Aprobado / Rechazado)"
+EmisorCert --> EmisorCert : "Consolidar metadatos del software\n(nombre, versión, fecha de lanzamiento y algoritmos)"
+
+@enduml

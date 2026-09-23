@@ -1,0 +1,62 @@
+@startuml
+skinparam linetype ortho
+hide empty members
+hide empty description
+
+package "Entradas Externas (Presentador)" {
+  component [Vectores de Tensión Bruta y Periodo de Muestreo] as EntradaDatos
+}
+
+package "Modelo: Motor de Cálculo (Analizador de Impulsos)" {
+
+  package "Fase I: Acondicionamiento Inicial (Preprocesamiento)" {
+    component [Eliminación Estadística de Offset] as ModOffset
+    component [Normalización de Polaridad] as ModPolaridad
+    component [Escalamiento a Valor Unitario (p.u.)] as ModNormUnit
+  }
+
+  package "Fase II: Clasificación y Evaluación de Curva Base" {
+    component [Alineación Temporal Sub-muestral] as ModAlineacion
+    component [Clasificador Dinámico de Impulsos] as ModClasificador
+    component [Ajuste Paramétrico No Lineal (Levenberg-Marquardt)] as ModAjusteDobleExp
+    component [Escalamiento Analítico por Relación de Amplitud] as ModEscalamientoLIC
+    component [Detección de Colapso e Instante de Corte] as ModCorteLIC
+  }
+
+  package "Fase III: Filtrado Normativo y Extracción de Parámetros (IEC 60060-1 / 61083-2)" {
+    component [Sustracción de Curva Residual] as ModResidual
+    component [Filtro Digital IIR de Fase Cero] as ModFiltroIIR
+    component [Sintetizador de Curva de Ensayo] as ModCurvaEnsayo
+    component [Calculador de Parámetros Normativos] as ModParametros
+  }
+}
+
+package "Salidas Externas (Presentador / GUI)" {
+  component [Parámetros Característicos (Ut, T1, T2, OS%)] as SalidaResultados
+}
+
+' TODO: Corrección atmosférica de la tensión de ensayo (k1, k2) según condiciones ambientales - Actualmente realizada de forma manual por el operador según IEC 60060-1
+
+EntradaDatos --> ModOffset : "Muestras brutas de tensión"
+ModOffset --> ModPolaridad : "Vector compensado de ruido pre-trigger"
+ModPolaridad --> ModNormUnit : "Vector absoluto en semiplano positivo"
+
+ModNormUnit --> ModAlineacion : "Señal de ensayo normalizada"
+ModAlineacion --> ModClasificador : "Eje de tiempo alineado con referencia"
+
+ModNormUnit --> ModAjusteDobleExp : "Segmentación del frente (20%) y cola (40%)\n[Ajuste directo si es onda de referencia]"
+
+ModClasificador --> ModAjusteDobleExp : "Evaluación de desviación <= umbral\n(Impulso Pleno - LI)"
+ModClasificador --> ModEscalamientoLIC : "Evaluación de desviación > umbral\n(Impulso Cortado - LIC)"
+
+ModEscalamientoLIC --> ModCorteLIC : "Curva base de referencia escalada"
+ModCorteLIC --> ModResidual : "Instante de corte y curva base sintetizada"
+ModAjusteDobleExp --> ModResidual : "Curva base analítica ajustada Um(t)"
+
+ModResidual --> ModFiltroIIR : "Curva residual R(t) = U0(t) - Um(t)"
+ModFiltroIIR --> ModCurvaEnsayo : "Residual filtrada Rf(t)"
+ModCurvaEnsayo --> ModParametros : "Curva de tensión de ensayo Ut(t) = Um(t) + Rf(t)"
+
+ModParametros --> SalidaResultados : "Valores calculados (Ut, T1, T2, OS%)"
+
+@enduml

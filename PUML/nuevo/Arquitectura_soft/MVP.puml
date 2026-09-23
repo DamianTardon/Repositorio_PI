@@ -1,0 +1,25 @@
+@startuml
+hide empty members
+hide empty description
+skinparam linetype ortho
+
+package "Modelo-Vista-Presentador (MVP)" {
+    class "Vista (MVP)" as Vista_MVP {
+        + mostrar_datos()
+        + enviar_accion_usuario()
+    }
+    class "Presentador" as Presentador {
+        + manejar_logica_presentacion()
+        + procesar_interaccion_usuario()
+    }
+    class "Modelo (MVP)" as Modelo_MVP {
+        + procesar_datos()
+        + realizar_calculos()
+        + tomar_decisiones()
+    }
+
+    Vista_MVP --> Presentador : envía acciones del usuario
+    Presentador --> Vista_MVP : suministra datos para presentación
+    Presentador <--> Modelo_MVP : consulta y actualiza datos y lógica
+}
+@enduml

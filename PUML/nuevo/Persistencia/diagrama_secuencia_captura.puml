@@ -1,0 +1,63 @@
+@startuml
+skinparam linetype ortho
+
+actor "Operador" as Operador
+participant "Interfaz Gráfica\n(Vista)" as Vista
+participant "Presentador Central\n(MainPresenter)" as Presentador
+participant "Controlador de Hardware\n(HAL / PyVISA)" as HAL
+participant "Hilo de Monitoreo\n(Worker Thread)" as Hilo
+entity "Osciloscopio Digital\n(GDS-1000A-U)" as Osciloscopio
+participant "Motor de Cálculo\n(Impulse Analyzer)" as MotorCalculo
+participant "Gestor de Archivos\n(FileManager)" as FileManager
+
+Operador -> Vista : Configurar parámetros y solicitar captura\n("Armar Disparo")
+activate Vista
+
+Vista -> Presentador : Notificar evento de inicio de captura
+activate Presentador
+
+Presentador -> HAL : Configurar escala, atenuación y modo de disparo único
+activate HAL
+HAL -> Osciloscopio : Enviar comandos SCPI de configuración y habilitar trigger
+HAL --> Presentador : Confirmar preparación del instrumental
+deactivate HAL
+
+Presentador -> Hilo : Iniciar monitoreo asíncrono de disparo
+activate Hilo
+
+Hilo -> Osciloscopio : Consultar estado de adquisición (polling)
+activate Osciloscopio
+
+... Ocurrencia del ensayo de impulso en Alta Tensión ...
+
+Osciloscopio -> Osciloscopio : Capturar y almacenar forma de onda en memoria
+Osciloscopio --> Hilo : Notificar detección de trigger y fin de captura
+deactivate Osciloscopio
+
+Hilo --> Presentador : Emitir señal de captura completada
+deactivate Hilo
+
+Presentador -> HAL : Solicitar descarga de trama de datos brutos
+activate HAL
+HAL -> Osciloscopio : Transferir memoria binaria de señal
+Osciloscopio --> HAL : Bloque binario de datos
+HAL --> Presentador : Entregar vectores de tiempo y tensión decodificados
+deactivate HAL
+
+Presentador -> MotorCalculo : Ejecutar procesamiento matemático de la señal\n(Acondicionamiento, filtrado IEC 60060-1 y cálculo de parámetros)
+activate MotorCalculo
+MotorCalculo --> Presentador : Retornar curva base y parámetros calculados (Up, T1, T2)
+deactivate MotorCalculo
+
+Presentador -> Vista : Actualizar gráfica en tiempo real y mostrar parámetros
+Vista --> Operador : Presentar resultado en pantalla
+deactivate Vista
+
+Presentador -> FileManager : Registrar captura y guardar en base de datos HDF5
+activate FileManager
+FileManager --> Presentador : Confirmar persistencia de datos
+deactivate FileManager
+
+deactivate Presentador
+
+@enduml

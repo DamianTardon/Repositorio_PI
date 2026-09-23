@@ -1,0 +1,30 @@
+@startuml
+skinparam linetype ortho
+hide empty members
+hide empty description
+
+package "Capa de Coordinación" {
+  component [Presentador Central] as Presentador
+}
+
+package "Modelo: Capa de Abstracción de Hardware (HAL)" {
+  component [Controlador de Instrumental (PyVISA / SCPI)] as Controlador
+  component [Hilo Secundario de Polling Asíncrono] as PollingThread
+  component [Decodificador de Tramas y Desempaquetador] as Decodificador
+}
+
+package "Instrumental Físico" {
+  component [Osciloscopio Digital GDS-1000A-U] as Osciloscopio
+}
+
+Presentador --> Controlador : "Configurar parámetros\n(escalas V/div y s/div, modo single-shot)"
+Presentador --> PollingThread : "Iniciar rutina de espera\nno bloqueante"
+PollingThread --> Osciloscopio : "Consultar estado de disparo\n(polling continuo)"
+Osciloscopio ..> PollingThread : "Notificar evento de disparo (trigger)"
+PollingThread --> Presentador : "Emitir señal de disparo detectado\ny finalizar subproceso"
+Presentador --> Controlador : "Solicitar descarga de datos brutos (RAW)"
+Controlador --> Osciloscopio : "Enviar comandos SCPI de lectura de memoria"
+Osciloscopio ..> Decodificador : "Transferir bloque binario (#ABCDE)"
+Decodificador --> Presentador : "Entregar vectores de datos decodificados\npara escalamiento y cálculo"
+
+@enduml

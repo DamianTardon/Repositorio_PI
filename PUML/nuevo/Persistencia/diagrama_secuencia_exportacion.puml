@@ -1,0 +1,65 @@
+@startuml
+skinparam linetype ortho
+hide empty members
+hide empty description
+
+actor "Operador Técnico" as Operador
+
+box "Capa de Vista"
+  participant "Interfaz Gráfica (GUI)" as Vista
+end box
+
+box "Capa de Coordinación" #LightBlue
+  participant "Presentador Central" as Presentador
+end box
+
+box "Modelo: Persistencia de Datos" #LightGreen
+  participant "Gestor de Archivos (FileManager)" as FileManager
+  database "Base de Datos HDF5 (.h5)" as HDF5
+  collections "Sistema de Ficheros (Disco)" as Disco
+end box
+
+participant "Sistema Operativo" as SO
+
+Operador -> Vista : Presionar botón "Exportar"
+Vista -> Presentador : Notificar solicitud de exportación de resultados
+
+alt Sesión no creada / Proyecto inactivo
+  Presentador -> Vista : Mostrar alerta ("Debe crear o abrir un ensayo")
+  Vista --> Operador : Desplegar mensaje de advertencia
+else Sesión activa
+  Presentador -> FileManager : Solicitar recopilación de resultados analíticos (HDF5 a tabla)
+  activate FileManager
+  FileManager -> HDF5 : Leer atributos globales y metadatos de grupos de onda
+  activate HDF5
+  HDF5 --> FileManager : Retornar registros de ensayo y condiciones ambientales
+  deactivate HDF5
+  
+  FileManager -> FileManager : Filtrar impulsos de referencia (conservar solo ensayos)\ny escalar unidades físicas (V a kV, s a µs)
+  FileManager --> Presentador : Entregar estructura tabular de resultados (DataFrame)
+  deactivate FileManager
+
+  alt Sin datos de ensayo almacenados
+    Presentador -> Vista : Notificar ausencia de registros de ensayo exportables
+    Vista --> Operador : Mostrar mensaje informativo
+  else Datos disponibles para exportar
+    Presentador -> Vista : Solicitar selección de ruta, nombre y formato (.xlsx / .csv)
+    Vista -> Operador : Desplegar cuadro de diálogo de guardado de archivo
+    Operador -> Vista : Seleccionar ubicación y formato de salida
+    Vista --> Presentador : Retornar ruta de destino y formato seleccionado
+
+    Presentador -> FileManager : Convertir y guardar tabla en el formato especificado
+    activate FileManager
+    FileManager -> Disco : Escribir hoja de cálculo (.xlsx) o archivo CSV en subcarpeta "03 Resultados"
+    activate Disco
+    Disco --> FileManager : Confirmar escritura física exitosa
+    deactivate Disco
+    FileManager --> Presentador : Notificar finalización de guardado
+    deactivate FileManager
+
+    Presentador -> SO : Invocar explorador de archivos nativo en la ruta del reporte
+    SO --> Operador : Abrir ventana del explorador de archivos con el documento seleccionado
+  end
+end
+
+@enduml

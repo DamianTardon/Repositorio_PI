@@ -1,0 +1,56 @@
+@startuml
+skinparam linetype ortho
+hide empty members
+hide empty description
+
+package "Capa de Coordinación" {
+  component [Presentador Central] as Presentador
+}
+
+package "Modelo: Gestión de la Base de Datos (Persistencia)" {
+  
+  package "Módulo de Validaciones y Trazabilidad" {
+    component [Validador de Sesión y Búfer] as Validador
+    component [Generador de Trazabilidad\n(Marca Temporal y Contador)] as Trazabilidad
+  }
+
+  package "Flujo de Almacenamiento Jerárquico" {
+    component [Manejador de Archivo HDF5\n(Modo Adición Seguro)] as HDF5Manager
+    component [Organizador de Grupos y Atributos\n(/Onda_n, Metadatos, CH1/CH2/Time)] as StructHDF5
+    component [Generador de Resguardo Redundante CSV] as BackupCSV
+  }
+
+  package "Flujo de Exportación de Resultados" {
+    component [Conversor de Unidades Físicas\n(s -> µs, V -> kV)] as UnitConverter
+    component [Generador de Planillas de Resultados\n(XLSX / CSV)] as ExcelExporter
+  }
+}
+
+package "Sistema de Ficheros en Disco" {
+  database "Base de Datos HDF5\n(/02 Analisis de datos/item-cliente.h5)" as DB_HDF5
+  folder "Carpeta de Respaldo CSV\n(/01 Respaldo/Onda_nn_...csv)" as Folder_CSV
+  file "Planilla de Resultados\n(/03 Resultados/item-cliente - Resultados.xlsx)" as File_Excel
+}
+
+' TODO: Implementación de exportación automática de reportes consolidados en formato PDF según especificación teórica.
+
+' Relaciones - Coordinación e Inicio
+Presentador --> Validador : "Verificar sesión activa, datos ambientales\ny búfer no vacío"
+Validador --> Trazabilidad : "Autorizar registro y asignar\ntimestamp y número de onda"
+Trazabilidad --> Presentador : "Confirmar preparación de datos"
+
+' Relaciones - Flujo de Almacenamiento
+Presentador --> HDF5Manager : "Delegar guardado permanente\nde señales y metadatos"
+HDF5Manager --> StructHDF5 : "Apertura segura mediante manejador de contexto"
+StructHDF5 --> DB_HDF5 : "Escribir grupo /Onda_n, atributos globales/particulares\ny vectores (/Time, /CH1_Voltage, /CH2_Current)"
+
+Presentador --> BackupCSV : "Delegar generación de respaldo redundante"
+BackupCSV --> Folder_CSV : "Escribir trazas individuales de tensión y corriente\nen texto plano (.csv)"
+
+' Relaciones - Flujo de Exportación
+Presentador --> UnitConverter : "Solicitar exportación del historial de impulsos"
+UnitConverter --> UnitConverter : "Convertir unidades (V -> kV, s -> µs)"
+UnitConverter --> ExcelExporter : "Transferir matriz de datos reconvertidos"
+ExcelExporter --> File_Excel : "Generar hoja de cálculo (.xlsx / .csv)"
+
+@enduml

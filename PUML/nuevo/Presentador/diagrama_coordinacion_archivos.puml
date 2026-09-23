@@ -1,0 +1,46 @@
+@startuml
+skinparam linetype ortho
+hide empty members
+hide empty description
+
+package "Capa de Visualización (Vista)" {
+  component [Interfaz de Usuario (GUI)] as GUI
+}
+
+package "Capa de Coordinación" {
+  component [Presentador Central] as Presentador
+}
+
+package "Modelo: Gestor de Archivos (Persistencia)" {
+  component [Validador de Entrada y Estado] as Validador
+  component [Administrador HDF5] as AdminHDF5
+  component [Generador de Respaldos CSV] as RespaldosCSV
+  component [Exportador a Planillas (XLSX/CSV)] as Exportador
+}
+
+package "Sistema de Archivos en Disco" {
+  component [Base de Datos HDF5 (.h5)] as ArchivoHDF5
+  component [Archivos CSV de Respaldo Plano] as ArchivosCSV
+  component [Hoja de Cálculo Exportada (.xlsx / .csv)] as HojaCalculo
+}
+
+GUI --> Presentador : "Enviar eventos (Guardar, Cargar, Exportar, Crear Sesión)"
+
+Presentador --> Validador : "Verificar sesión activa, campos obligatorios y búfer no vacío"
+Validador ..> Presentador : "Confirmación / Notificación de validación (alerta de error)"
+
+Presentador --> AdminHDF5 : "Empaquetar trazas y metadatos (cliente, ambiente) para guardado"
+AdminHDF5 --> ArchivoHDF5 : "Escritura en modo adición con manejador de contexto"
+AdminHDF5 --> RespaldosCSV : "Delegar copia redundante en texto plano"
+RespaldosCSV --> ArchivosCSV : "Generar archivo CSV de respaldo (onda bruta escalada)"
+
+Presentador --> AdminHDF5 : "Solicitar recuperación de ensayo previo"
+ArchivoHDF5 ..> AdminHDF5 : "Leer atributos, metadatos y vectores temporales/tensión"
+AdminHDF5 ..> Presentador : "Retornar datos del ensayo para actualizar la interfaz"
+
+Presentador --> Exportador : "Delegar conversión de historial de ensayos"
+Exportador --> HojaCalculo : "Convertir unidades (s -> us, V -> kV) y escribir archivo"
+
+Presentador --> GUI : "Notificar estado de operación y actualizar indicadores/gráficos"
+
+@enduml

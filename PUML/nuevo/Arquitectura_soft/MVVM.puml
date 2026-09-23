@@ -1,0 +1,24 @@
+@startuml
+hide empty members
+hide empty description
+skinparam linetype ortho
+
+package "Modelo-Vista-VistaModelo (MVVM)" {
+    class "Vista (MVVM)" as Vista_MVVM {
+        + enlazar_datos()
+        + invocar_comandos()
+    }
+    class "VistaModelo" as ViewModel {
+        + exponer_datos()
+        + exponer_comandos()
+    }
+    class "Modelo (MVVM)" as Modelo_MVVM {
+        + procesar_datos()
+        + realizar_calculos()
+        + tomar_decisiones()
+    }
+
+    Vista_MVVM <..> ViewModel : enlace de datos y comandos (data binding)
+    ViewModel <--> Modelo_MVVM : consulta y actualiza lógica de negocio
+}
+@enduml

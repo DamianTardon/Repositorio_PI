@@ -1,0 +1,43 @@
+@startuml
+title Diagrama de Bloques - MVP Simplificado / Pragmático (Qt / Python)
+
+skinparam componentStyle uml2
+skinparam backgroundColor #FFFFFF
+skinparam packageStyle rectangle
+
+actor "Usuario" as User
+
+package "MVP Simplificado (Qt)" {
+    [View / Qt UI\n(Clase principal + ui_main.py)] as View
+    [Presenter\n(Presentador / Control de flujo)] as Presenter
+    [Model\n(Lógica de negocio en Python)] as Model
+}
+
+' Flujos de interacción y relaciones de dependencia
+User --> View : 1. Interacción gráfica / Estímulo en UI
+View --> Presenter : 2. Señales de Qt (clicked, textChanged, etc.)
+Presenter --> View : 3. Lectura / Escritura directa de widgets (view.ui)
+Presenter --> Model : 4. Invocación de lógica de negocio
+Model --> Presenter : 5. Retorno de datos / Resultados
+Presenter --> View : 6. Actualización directa de la UI (setText, etc.)
+View --> User : 7. Muestra pantalla actualizada
+
+note right of View
+  Vista (.ui -> .py):
+  Define los widgets y emite señales de Qt.
+  No contiene lógica de negocio.
+end note
+
+note bottom of Presenter
+  Presentador Pragmático:
+  Se conecta a las señales de la Vista
+  y manipula los widgets directamente (view.ui),
+  omitiendo la interfaz abstracta IView.
+end note
+
+note right of Model
+  Modelo en Python Puro:
+  Totalmente desacoplado de Qt y de la UI.
+end note
+
+@enduml

@@ -3,58 +3,48 @@ skinparam linetype ortho
 hide empty members
 hide empty description
 
-actor "Operador Técnico" as Operador
+actor "Operador" as Operador
+participant "Interfaz gráfica" as Vista
+participant "Presentador" as Presentador
+participant "Gestor de archivos" as FileManager
+database "Base de datos" as HDF5
+collections "Sistema de ficheros" as Disco
+participant "Sistema operativo" as SO
 
-box "Capa de Vista"
-  participant "Interfaz Gráfica (GUI)" as Vista
-end box
-
-box "Capa de Coordinación" #LightBlue
-  participant "Presentador Central" as Presentador
-end box
-
-box "Modelo: Persistencia de Datos" #LightGreen
-  participant "Gestor de Archivos (FileManager)" as FileManager
-  database "Base de Datos HDF5 (.h5)" as HDF5
-  collections "Sistema de Ficheros (Disco)" as Disco
-end box
-
-participant "Sistema Operativo" as SO
-
-Operador -> Vista : Presionar botón "Exportar"
-Vista -> Presentador : Notificar solicitud de exportación de resultados
+Operador -> Vista : Presionar botón \n"Exportar"
+Vista -> Presentador : Solicitar exportación \nde resultados
 
 alt Sesión no creada / Proyecto inactivo
-  Presentador -> Vista : Mostrar alerta ("Debe crear o abrir un ensayo")
-  Vista --> Operador : Desplegar mensaje de advertencia
+  Presentador -> Vista : Mostrar alerta \n("Crear o abrir \nun ensayo")
+  Vista --> Operador : Mensaje de \nadvertencia
 else Sesión activa
-  Presentador -> FileManager : Solicitar recopilación de resultados analíticos (HDF5 a tabla)
+  Presentador -> FileManager : Solicitar \nrecopilación \nde resultados
   activate FileManager
-  FileManager -> HDF5 : Leer atributos globales y metadatos de grupos de onda
+  FileManager -> HDF5 : Solicitar datos \nde ensayo
   activate HDF5
-  HDF5 --> FileManager : Retornar registros de ensayo y condiciones ambientales
+  HDF5 --> FileManager : Retornar datos \nde ensayo
   deactivate HDF5
   
-  FileManager -> FileManager : Filtrar impulsos de referencia (conservar solo ensayos)\ny escalar unidades físicas (V a kV, s a µs)
-  FileManager --> Presentador : Entregar estructura tabular de resultados (DataFrame)
+  FileManager -> FileManager : Escalar unidades \n(V a kV, s a µs)
+  FileManager --> Presentador : Entregar tabla \nde resultados
   deactivate FileManager
 
   alt Sin datos de ensayo almacenados
-    Presentador -> Vista : Notificar ausencia de registros de ensayo exportables
-    Vista --> Operador : Mostrar mensaje informativo
+    Presentador -> Vista : Notificar ausencia \nde registros \nexportables
+    Vista --> Operador : Mensaje \ninformativo
   else Datos disponibles para exportar
-    Presentador -> Vista : Solicitar selección de ruta, nombre y formato (.xlsx / .csv)
-    Vista -> Operador : Desplegar cuadro de diálogo de guardado de archivo
-    Operador -> Vista : Seleccionar ubicación y formato de salida
-    Vista --> Presentador : Retornar ruta de destino y formato seleccionado
+    Presentador -> Vista : Solicitar ruta, \nnombre y formato
+    Vista -> Operador : Mostrar cuadro \nde diálogo de \nguardado de \narchivo
+    Operador -> Vista : Seleccionar ubicación \ny formato de salida
+    Vista --> Presentador : Retornar ruta de destino \ny formato seleccionado
 
-    Presentador -> FileManager : Convertir y guardar tabla en el formato especificado
+    Presentador -> FileManager : Convertir y guardar \ntabla en el formato \nespecificado
     activate FileManager
-    FileManager -> Disco : Escribir hoja de cálculo (.xlsx) o archivo CSV en subcarpeta "03 Resultados"
+    FileManager -> Disco : Escribir archivo \n.xlsx o .csv
     activate Disco
-    Disco --> FileManager : Confirmar escritura física exitosa
+    Disco --> FileManager : Confirmar escritura
     deactivate Disco
-    FileManager --> Presentador : Notificar finalización de guardado
+    FileManager --> Presentador : Notificar guardado \nfinalizado
     deactivate FileManager
 
     Presentador -> SO : Invocar explorador de archivos nativo en la ruta del reporte

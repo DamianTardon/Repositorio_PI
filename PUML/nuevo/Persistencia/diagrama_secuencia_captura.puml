@@ -2,58 +2,58 @@
 skinparam linetype ortho
 
 actor "Operador" as Operador
-participant "Interfaz Gráfica\n(Vista)" as Vista
-participant "Presentador Central\n(MainPresenter)" as Presentador
-participant "Controlador de Hardware\n(HAL / PyVISA)" as HAL
-participant "Hilo de Monitoreo\n(Worker Thread)" as Hilo
-entity "Osciloscopio Digital\n(GDS-1000A-U)" as Osciloscopio
-participant "Motor de Cálculo\n(Impulse Analyzer)" as MotorCalculo
-participant "Gestor de Archivos\n(FileManager)" as FileManager
+participant "Interfaz\ngráfica" as Vista
+participant "Presentador" as Presentador
+participant "Controlador\n de hardware" as HAL
+participant "Hilo de monitoreo" as Hilo
+entity "Osciloscopio" as Osciloscopio
+participant "Motor de cálculo" as MotorCalculo
+participant "Gestor de archivos" as FileManager
 
-Operador -> Vista : Configurar parámetros y solicitar captura\n("Armar Disparo")
+Operador -> Vista : Configurar \nparámetros\n y solicitar \ncaptura
 activate Vista
 
-Vista -> Presentador : Notificar evento de inicio de captura
+Vista -> Presentador : Notificar inicio\n de captura
 activate Presentador
 
-Presentador -> HAL : Configurar escala, atenuación y modo de disparo único
+Presentador -> HAL : Configurar\n instrumento
 activate HAL
-HAL -> Osciloscopio : Enviar comandos SCPI de configuración y habilitar trigger
-HAL --> Presentador : Confirmar preparación del instrumental
+HAL -> Osciloscopio : Enviar comandos SCPI
+HAL --> Presentador : Confirmar \nestado del \ninstrumento
 deactivate HAL
 
-Presentador -> Hilo : Iniciar monitoreo asíncrono de disparo
+Presentador -> Hilo : Iniciar \nmonitoreo\n de disparo
 activate Hilo
 
-Hilo -> Osciloscopio : Consultar estado de adquisición (polling)
+Hilo -> Osciloscopio : Consultar \nestado de\n adquisición
 activate Osciloscopio
 
 ... Ocurrencia del ensayo de impulso en Alta Tensión ...
 
-Osciloscopio -> Osciloscopio : Capturar y almacenar forma de onda en memoria
-Osciloscopio --> Hilo : Notificar detección de trigger y fin de captura
+Osciloscopio -> Osciloscopio : Capturar y \nalmacenar \nonda
+Osciloscopio --> Hilo : Notificar \ndetección \nde onda y \nfin de captura
 deactivate Osciloscopio
 
-Hilo --> Presentador : Emitir señal de captura completada
+Hilo --> Presentador : Emitir señal de \ncaptura completada
 deactivate Hilo
 
-Presentador -> HAL : Solicitar descarga de trama de datos brutos
+Presentador -> HAL : Solicitar descarga \nde datos brutos
 activate HAL
-HAL -> Osciloscopio : Transferir memoria binaria de señal
-Osciloscopio --> HAL : Bloque binario de datos
-HAL --> Presentador : Entregar vectores de tiempo y tensión decodificados
+HAL -> Osciloscopio : Transferir memoria
+Osciloscopio --> HAL : Bloque de datos
+HAL --> Presentador : Entregar vectores \nde tiempo y tensión \ndecodificados
 deactivate HAL
 
-Presentador -> MotorCalculo : Ejecutar procesamiento matemático de la señal\n(Acondicionamiento, filtrado IEC 60060-1 y cálculo de parámetros)
+Presentador -> MotorCalculo : Ejecutar análisis de onda.
 activate MotorCalculo
-MotorCalculo --> Presentador : Retornar curva base y parámetros calculados (Up, T1, T2)
+MotorCalculo --> Presentador : Retornar curva de ensayo y parámetros calculados (Ut, T1, T2, OS)
 deactivate MotorCalculo
 
-Presentador -> Vista : Actualizar gráfica en tiempo real y mostrar parámetros
-Vista --> Operador : Presentar resultado en pantalla
+Presentador -> Vista : Actualizar \ngráfica y\n mostrar \nparámetros
+Vista --> Operador : Presentar \nresultado\n en pantalla
 deactivate Vista
 
-Presentador -> FileManager : Registrar captura y guardar en base de datos HDF5
+Presentador -> FileManager : Registrar captura y guardar en base de datos
 activate FileManager
 FileManager --> Presentador : Confirmar persistencia de datos
 deactivate FileManager

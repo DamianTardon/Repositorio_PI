@@ -1,42 +1,42 @@
 @startuml
-autonumber
+
 skinparam responseMessageBelowArrow true
 
 actor "Operador" as Operador
-participant "Interfaz Gráfica (Vista)" as Vista
-participant "Presentador Central" as Presentador
-participant "Gestor de Archivos (FileManager)" as GestorArchivos
-database "Base de Datos Jerárquica (HDF5)" as HDF5
-participant "Resguardo Redundante (CSV)" as CSV
+participant "Interfaz gráfica" as Vista
+participant "Presentador" as Presentador
+participant "Gestor de archivos" as GestorArchivos
+database "Base de datos" as HDF5
+participant "Resguardo" as CSV
 
-Operador -> Vista : Solicitar guardado de ensayo
+Operador -> Vista : Solicitar guardar \nde ensayo
 activate Vista
 
-Vista -> Presentador : Transferir metadatos de usuario y solicitud de persistencia
+Vista -> Presentador : Solicitar persistencia
 activate Presentador
 
-Presentador -> Presentador : Validar metadatos e integridad de la onda procesada
+Presentador -> Presentador : Validar datos \nde onda
 
-Presentador -> GestorArchivos : Ordenar almacenamiento de ensayo (forma de onda, parámetros y entorno)
+Presentador -> GestorArchivos : Organizar \nalmacenamiento \nde ensayo
 activate GestorArchivos
 
-GestorArchivos -> HDF5 : Escribir estructura de datos y vectores de señal (compresión GZIP)
+GestorArchivos -> HDF5 : Escribir estructura \nde datos
 activate HDF5
-HDF5 --> GestorArchivos : Confirmar persistencia en base de datos
+HDF5 --> GestorArchivos : Confirmar \npersistencia
 deactivate HDF5
 
-GestorArchivos -> CSV : Generar resguardo tabular de respaldo
+GestorArchivos -> CSV : Generar tabla de respaldo
 activate CSV
-CSV --> GestorArchivos : Confirmar generación de archivo CSV
+CSV --> GestorArchivos : Confirmar creación de archivo .csv
 deactivate CSV
 
-GestorArchivos --> Presentador : Notificar almacenamiento exitoso
+GestorArchivos --> Presentador : Notificar \nalmacenamiento \nexitoso
 deactivate GestorArchivos
 
-Presentador -> Vista : Notificar finalización de guardado
+Presentador -> Vista : Notificar guardado \nfinalizado
 deactivate Presentador
 
-Vista --> Operador : Mostrar mensaje de confirmación de guardado en pantalla
+Vista --> Operador : Mostrar mensaje \nde confirmación \nde guardado en \npantalla
 deactivate Vista
 
 @enduml

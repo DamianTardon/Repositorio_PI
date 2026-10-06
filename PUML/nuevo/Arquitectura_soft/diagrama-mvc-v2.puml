@@ -1,0 +1,39 @@
+@startuml
+title Diagrama de Bloques - Arquitectura MVC (Model-View-Controller)
+
+skinparam componentStyle uml2
+skinparam backgroundColor #FFFFFF
+skinparam packageStyle rectangle
+
+actor "Usuario" as User
+
+package "Patrón MVC" {
+    [Controller\n(Semántica de interacción)] as Controller
+    [Model\n(Información y reglas de negocio)] as Model
+    [View\n(Opciones de visualización UI)] as View
+}
+
+' Flujos de interacción y relaciones de dependencia
+User --> Controller : 1. Eventos de entrada / Estímulos UI
+Controller --> Model : 2. Actualiza estado / Ejecuta comandos
+Model ..> View : 3. Notificación de cambios (Patrón Observer)
+View --> Model : 4. Consulta datos de dominio directamente
+Controller ..> View : Selecciona / Configura la Vista
+View --> User : 5. Renderizado y despliegue gráfico
+
+note right of Controller
+  Captura la entrada del usuario, traduce acciones
+  y orquesta la actualización del Modelo y la Vista.
+end note
+
+note bottom of Model
+  Encapsula la lógica de dominio y datos.
+  Notifica a la Vista cuando su estado cambia.
+end note
+
+note right of View
+  Renderiza la información visual observando
+  al Modelo directamente.
+end note
+
+@enduml

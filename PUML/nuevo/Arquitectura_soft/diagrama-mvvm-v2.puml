@@ -1,0 +1,41 @@
+@startuml
+title Diagrama de Bloques - Arquitectura MVVM (Model-View-ViewModel)
+
+skinparam componentStyle uml2
+skinparam backgroundColor #FFFFFF
+skinparam packageStyle rectangle
+
+actor "Usuario" as User
+
+package "Patrón MVVM" {
+    [View\n(UI Declarativa)] as View
+    [Binder / Data Binding Engine] as Binder
+    [ViewModel\n(Abstracción de presentación / Estado)] as ViewModel
+    [Model\n(Entidades de dominio y datos)] as Model
+}
+
+' Flujos de interacción y relaciones de dependencia
+User --> View : 1. Acciones de usuario
+View <==> Binder : Interceptor de binding
+Binder <==> ViewModel : 2. Data Binding Bidireccional / Comandos
+ViewModel --> Model : 3. Consulta / Modifica lógica de negocio
+Model --> ViewModel : 4. Retorna entidades de datos
+ViewModel ..> View : 5. Notificación observable (INotifyPropertyChanged)
+View --> User : 6. Actualización automática de pantalla
+
+note right of View
+  Definida declarativamente (XAML/HTML).
+  Sin referencias de código imperativo hacia el ViewModel.
+end note
+
+note bottom of ViewModel
+  Contiene el estado de la UI y comandos.
+  No posee referencias directas a componentes visuales.
+end note
+
+note right of Model
+  Mantiene los datos de dominio y la persistencia.
+  Desacoplado de la infraestructura visual.
+end note
+
+@enduml

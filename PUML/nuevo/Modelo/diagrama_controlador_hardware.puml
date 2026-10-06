@@ -3,50 +3,48 @@ skinparam linetype ortho
 hide empty members
 hide empty description
 
-package "Capa de Abstracción de Hardware (HAL)" {
-  package "Gestión de Conexión y Recursos" {
-    component [Administrador de Recursos VISA] as VisaManager
-    component [Escáner de Dispositivos Lógicos] as Escaner
-    component [Manejador de Excepciones y Liberación] as GestorExcepciones
+package "Abstracción de hardware" {
+  package "Gestión de recursos" {
+    component [Administrador de recursos VISA] as VisaManager
+    component [Escáner de dispositivos] as Escaner
+    component [Manejador de excepciones] as GestorExcepciones
   }
 
-  package "Capa Protocolar SCPI" {
-    component [Configurador de Parámetros] as Setters
-    component [Consultor de Estado y Mediciones] as Getters
-    component [Formateador de Mensajes SCPI] as FormateadorSCPI
+  package "Protocolo SCPI" {
+    component [Configurar parámetros] as Setters
+    component [Consultar estado] as Getters
+    component [Formatear mensajes] as FormateadorSCPI
   }
 
-  package "Adquisición y Desempaquetado" {
-    component [Sondeador de Estado de Disparo] as Polling
-    component [Desempaquetador de Tramas RAW] as Desempaquetador
+  package "Adquisición y desempaquetado" {
+    component [Verificador de estado de disparo] as Polling
+    component [Desempaquetador de datos] as Desempaquetador
   }
 }
 
-package "Capa de Transporte y Controlador del S.O." {
-  component [Controlador Serie Virtual (CDC-ACM / COM1)] as DriverCDC
+package "Control del S.O." {
+  component [Controlador de puerto] as DriverCDC
 }
 
-package "Instrumental Físico (Osciloscopio Digital)" {
-  component [Puerto USB Esclavo Tipo B] as PuertoUSB
-  component [Procesador de Comandos SCPI] as ProcesadorSCPI
-  component [Convertidor ADC de 8 bits y Memoria Interna] as MemoriaADC
+package "Osciloscopio" {
+  component [Puerto USB] as PuertoUSB
+  component [Procesador de comandos SCPI] as ProcesadorSCPI
+  component [Convertidor ADC y Memoria interna] as MemoriaADC
 }
 
-' TODO: La documentación teórica describe el uso del protocolo VISA estándar y comandos SCPI, pero carece de implementación en el código fuente para la autocalibración de retardo de transmisión en la HAL.
+VisaManager --> Escaner
+Escaner --> DriverCDC
+GestorExcepciones ..> VisaManager
 
-VisaManager --> Escaner : "Inicializar búsqueda de recursos"
-Escaner --> DriverCDC : "Escanear descriptores ASRL / USB"
-GestorExcepciones ..> VisaManager : "Abortar operaciones y liberar\ndescriptores ante error de bus"
+Setters --> FormateadorSCPI
+Getters --> FormateadorSCPI
+FormateadorSCPI --> DriverCDC
 
-Setters --> FormateadorSCPI : "Enviar parámetros de configuración\n(escalas, posiciones, modo single-shot)"
-Getters --> FormateadorSCPI : "Solicitar lecturas de estado"
-FormateadorSCPI --> DriverCDC : "Transmitir trama formateada\n(delimitada por LF / 0x0A)"
+Polling --> Getters
+Desempaquetador <-- DriverCDC
 
-Polling --> Getters : "Consultar estado de disparo (polling)"
-Desempaquetador <-- DriverCDC : "Recibir bloque binario (#ABCDE)"
-
-DriverCDC <--> PuertoUSB : "Enlace físico USB 2.0"
-PuertoUSB <--> ProcesadorSCPI : "Interpretar y ejecutar instrucciones"
-ProcesadorSCPI <--> MemoriaADC : "Leer muestras digitalizadas de la memoria"
+DriverCDC <--> PuertoUSB
+PuertoUSB <--> ProcesadorSCPI
+ProcesadorSCPI <--> MemoriaADC
 
 @enduml

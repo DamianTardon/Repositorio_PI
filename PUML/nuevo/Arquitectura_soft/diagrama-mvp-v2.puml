@@ -1,0 +1,42 @@
+@startuml
+title Diagrama de Bloques - Arquitectura MVP (Model-View-Presenter)
+
+skinparam componentStyle uml2
+skinparam backgroundColor #FFFFFF
+skinparam packageStyle rectangle
+
+actor "Usuario" as User
+
+package "Patrón MVP" {
+    [View\n(Vista Pasiva / Componentes UI)] as View
+    interface "IView" as IView
+    [Presenter\n(Lógica de presentación / Mediador)] as Presenter
+    [Model\n(Reglas de negocio y datos)] as Model
+}
+
+View -up-|> IView : implementa
+
+' Flujos de interacción y relaciones de dependencia
+User --> View : 1. Interacción gráfica
+View --> Presenter : 2. Delega eventos de UI
+Presenter --> Model : 3. Consulta / Modifica datos
+Model --> Presenter : 4. Devuelve resultados
+Presenter --> IView : 5. Actualiza la interfaz (llamadas imperativas)
+View --> User : 6. Despliega pantalla actualizada
+
+note right of View
+  Vista Pasiva: Captura acciones pero no tiene
+  lógica ni referencia al Modelo.
+end note
+
+note bottom of Presenter
+  Mediador central: Procesa lógica de presentación,
+  gestiona el Modelo y manipula la Vista mediante IView.
+end note
+
+note right of Model
+  Completamente desacoplado de la Vista.
+  Responde únicamente a las solicitudes del Presentador.
+end note
+
+@enduml

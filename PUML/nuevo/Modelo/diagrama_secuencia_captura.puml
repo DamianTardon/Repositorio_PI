@@ -1,47 +1,32 @@
 @startuml
 skinparam responseMessageBelowArrow true
-autonumber
 
-box "Capa de Visualización (Vista)" #LightBlue
-actor "Operador Técnico" as user
-participant "Interfaz Gráfica (GUI)" as gui
-end box
-
-box "Capa de Coordinación (Presentador)" #LightGreen
+actor "Operador" as user
+participant "Interfaz gráfica" as gui
 participant "Presentador" as pres
-end box
+participant "Controlador de hardware" as hal
+participant "Motor de cálculo" as dsp
+participant "Osciloscopio" as dso
+participant "Generador de impulsos" as marx
 
-box "Capa de Modelo (Modelo)" #LightYellow
-participant "Controlador de Hardware (HAL)" as hal
-participant "Motor de Cálculo (DSP)" as dsp
-end box
-
-box "Hardware e Instrumentación" #LightGray
-participant "Osciloscopio Digital (DSO)" as dso
-participant "Generador de Impulsos (AT)" as marx
-end box
-
-user -> gui: Iniciar captura de ensayo
+user -> gui: Iniciar captura
 activate gui
-
-gui -> pres: Evento de inicio de captura
+gui -> pres: Notificar \niniciar \ncaptura
 activate pres
-
-pres -> hal: Configurar disparo único (single trigger)
+pres -> hal: Configurar \ndisparo
 activate hal
-hal -> dso: Comando SCPI :single (USB/PyVISA)
+hal -> dso: Comando SCPI
 activate dso
-dso --> hal: Confirmación de configuración
+dso --> hal: Confirmación de \nconfiguración
 deactivate dso
-hal --> pres: Disparo único listo
+hal --> pres: Disparo listo
 deactivate hal
+pres -> pres: Iniciar hilo \nsecundario asíncrono
 
-pres -> pres: Iniciar hilo secundario asíncrono\npara sondeo no bloqueante
-
-loop Sondeo de estado de disparo (polling en segundo plano)
-    pres -> hal: Consultar estado de captura
+loop Sondeo de estado de disparo en segundo plano
+    pres -> hal: Consultar estado \nde captura
     activate hal
-    hal -> dso: Consulta SCPI :trigger:state?
+    hal -> dso: Consulta SCPI
     activate dso
     dso --> hal: Estado "No disparado"
     deactivate dso
@@ -49,69 +34,46 @@ loop Sondeo de estado de disparo (polling en segundo plano)
     deactivate hal
 end
 
-marx -> dso: Evento físico: Descarga de alta tensión
+marx -> dso: Evento físico: \nDescarga de alta tensión
 activate dso
 note over dso
-  Acondicionamiento analógico (Divisor/Shunt),
-  muestreo y digitalización ADC (8 bits)
-  en memoria interna. Estado cambia a "Disparado".
+  Estado cambia a "Disparado".
 end note
 
-pres -> hal: Consultar estado de captura
+pres -> hal: Consultar estado \nde captura
 activate hal
-hal -> dso: Consulta SCPI :trigger:state?
+hal -> dso: Consulta SCPI
 dso --> hal: Estado "Disparado"
 deactivate dso
-hal --> pres: Notificar captura detectada
+hal --> pres: Notificar \ncaptura \ndetectada
 deactivate hal
 
-pres -> pres: Finalizar hilo asíncrono de sondeo
+pres -> pres: Finalizar hilo \nasíncrono
 
-pres -> hal: Solicitar descarga de datos brutos
+pres -> hal: Solicitar descarga \nde datos brutos
 activate hal
-hal -> dso: Solicitud de bloque de memoria (:acquire1:memory?)
+hal -> dso: Solicitud de \nbloque de memoria
 activate dso
-dso --> hal: Trama binaria (# A B C D E)
+dso --> hal: Bloque de datos
 deactivate dso
 
-hal -> hal: Desempaquetar trama binaria,\nextraer dt y aplicar escalamiento ADC
-hal --> pres: Vector de tensión sin escalar, vector temporal y dt
+hal -> hal: Desempaquetar datos brutos
+hal --> pres: Vector de tensión \nsin escalar y dt
 deactivate hal
 
-pres -> pres: Escalar vector con atenuación física\n(Divisor, Shunt y atenuadores coaxiales)
+pres -> pres: Reescalar vector \ncon atenuación física
 
 pres -> dsp: Transferir vectores y solicitar cálculo normativo
 activate dsp
 
-dsp -> dsp: Eliminar offset de tensión de pre-trigger
-dsp -> dsp: Normalizar polaridad al semiplano positivo
-dsp -> dsp: Normalizar amplitud a valor unitario
-
-alt Impulso Pleno (LI)
-    dsp -> dsp: Segmentar datos (20% frente a 40% cola)
-    dsp -> dsp: Ajuste de doble exponencial (Levenberg-Marquardt)
-    dsp -> dsp: Sintetizar curva base continua
-else Impulso Cortado (LIC)
-    dsp -> dsp: Calcular desfase temporal y alinear con referencia
-    dsp -> dsp: Clasificar desviación y segmentar hasta el colapso
-    dsp -> dsp: Escalar curva base con relación de amplitudes
-    dsp -> dsp: Determinar instante de corte y tensión de colapso
-end
-
-dsp -> dsp: Calcular curva residual (onda corregida - curva base)
-dsp -> dsp: Aplicar filtro digital IIR de fase cero a curva residual
-dsp -> dsp: Sintetizar curva de tensión de ensayo (curva base + residual filtrada)
-dsp -> dsp: Interpolación lineal y cálculo de parámetros (Ut, T1, T2/Tc, OS%)
-
-' TODO: [Aplicación automática de corrección atmosférica de Ut según parámetros ambientales teóricos (temperatura, presión, humedad)]
-
-dsp --> pres: Retornar curva de ensayo procesada y diccionario de resultados
+dsp -> dsp: Calcular parámetros \n(Ut, T1, T2/Tc, OS%)
+dsp --> pres: Retornar curva de ensayo y resultados
 deactivate dsp
 
-pres -> gui: Inyectar formas de onda y parámetros calculados
+pres -> gui: Inyectar onda \ny parámetros \ncalculados
 deactivate pres
 
-gui -> user: Renderizar curvas en pantalla y actualizar indicadores
+gui -> user: Renderizar curvas \ny actualizar \nindicadores \nen pantalla
 deactivate gui
 
 @enduml

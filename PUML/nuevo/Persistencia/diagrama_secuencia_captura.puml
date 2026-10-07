@@ -13,7 +13,7 @@ participant "Gestor de archivos" as FileManager
 Operador -> Vista : Configurar \nparámetros\n y solicitar \ncaptura
 activate Vista
 
-Vista -> Presentador : Notificar inicio\n de captura
+Vista -> Presentador : Notificar \ninicio de \ncaptura
 activate Presentador
 
 Presentador -> HAL : Configurar\n instrumento
@@ -34,14 +34,14 @@ Osciloscopio -> Osciloscopio : Capturar y \nalmacenar \nonda
 Osciloscopio --> Hilo : Notificar \ndetección \nde onda y \nfin de captura
 deactivate Osciloscopio
 
-Hilo --> Presentador : Emitir señal de \ncaptura completada
+Hilo --> Presentador : Emitir \nseñal de \ncaptura \ncompletada
 deactivate Hilo
 
-Presentador -> HAL : Solicitar descarga \nde datos brutos
+Presentador -> HAL : Solicitar \ndescarga \nde datos \nbrutos
 activate HAL
 HAL -> Osciloscopio : Transferir memoria
 Osciloscopio --> HAL : Bloque de datos
-HAL --> Presentador : Entregar vectores \nde tiempo y tensión \ndecodificados
+HAL --> Presentador : Entregar \nvectores \nde tiempo y \ntensión \ndecodificados
 deactivate HAL
 
 Presentador -> MotorCalculo : Ejecutar análisis de onda.
@@ -49,8 +49,8 @@ activate MotorCalculo
 MotorCalculo --> Presentador : Retornar curva de ensayo y parámetros calculados (Ut, T1, T2, OS)
 deactivate MotorCalculo
 
-Presentador -> Vista : Actualizar \ngráfica y\n mostrar \nparámetros
-Vista --> Operador : Presentar \nresultado\n en pantalla
+Presentador -> Vista : Actualizar \ngráfica y \nmostrar \nparámetros
+Vista --> Operador : Presentar \nresultado \nen pantalla
 deactivate Vista
 
 Presentador -> FileManager : Registrar captura y guardar en base de datos

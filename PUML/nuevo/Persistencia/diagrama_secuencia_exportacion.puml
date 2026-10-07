@@ -1,7 +1,5 @@
 @startuml
 skinparam linetype ortho
-hide empty members
-hide empty description
 
 actor "Operador" as Operador
 participant "Interfaz gráfica" as Vista
@@ -12,7 +10,7 @@ collections "Sistema de ficheros" as Disco
 participant "Sistema operativo" as SO
 
 Operador -> Vista : Presionar botón \n"Exportar"
-Vista -> Presentador : Solicitar exportación \nde resultados
+Vista -> Presentador : Solicitar \nexportación \nde resultados
 
 alt Sesión no creada / Proyecto inactivo
   Presentador -> Vista : Mostrar alerta \n("Crear o abrir \nun ensayo")
@@ -30,21 +28,21 @@ else Sesión activa
   deactivate FileManager
 
   alt Sin datos de ensayo almacenados
-    Presentador -> Vista : Notificar ausencia \nde registros \nexportables
+    Presentador -> Vista : Notificar \nausencia \nde registros \nexportables
     Vista --> Operador : Mensaje \ninformativo
   else Datos disponibles para exportar
-    Presentador -> Vista : Solicitar ruta, \nnombre y formato
+    Presentador -> Vista : Solicitar ruta, \nnombre y \nformato
     Vista -> Operador : Mostrar cuadro \nde diálogo de \nguardado de \narchivo
     Operador -> Vista : Seleccionar ubicación \ny formato de salida
-    Vista --> Presentador : Retornar ruta de destino \ny formato seleccionado
+    Vista --> Presentador : Retornar ruta \nde destino \ny formato \nseleccionado
 
-    Presentador -> FileManager : Convertir y guardar \ntabla en el formato \nespecificado
+    Presentador -> FileManager : Convertir y \nguardar tabla \nen el formato \nespecificado
     activate FileManager
     FileManager -> Disco : Escribir archivo \n.xlsx o .csv
     activate Disco
     Disco --> FileManager : Confirmar escritura
     deactivate Disco
-    FileManager --> Presentador : Notificar guardado \nfinalizado
+    FileManager --> Presentador : Notificar \nguardado \nfinalizado
     deactivate FileManager
 
     Presentador -> SO : Invocar explorador de archivos nativo en la ruta del reporte

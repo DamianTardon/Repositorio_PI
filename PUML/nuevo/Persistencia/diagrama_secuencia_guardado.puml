@@ -12,7 +12,7 @@ participant "Resguardo" as CSV
 Operador -> Vista : Solicitar guardar \nde ensayo
 activate Vista
 
-Vista -> Presentador : Solicitar persistencia
+Vista -> Presentador : Solicitar \npersistencia
 activate Presentador
 
 Presentador -> Presentador : Validar datos \nde onda
@@ -20,20 +20,20 @@ Presentador -> Presentador : Validar datos \nde onda
 Presentador -> GestorArchivos : Organizar \nalmacenamiento \nde ensayo
 activate GestorArchivos
 
-GestorArchivos -> HDF5 : Escribir estructura \nde datos
+GestorArchivos -> HDF5 : Escribir \nestructura \nde datos
 activate HDF5
 HDF5 --> GestorArchivos : Confirmar \npersistencia
 deactivate HDF5
 
 GestorArchivos -> CSV : Generar tabla de respaldo
 activate CSV
-CSV --> GestorArchivos : Confirmar creación de archivo .csv
+CSV --> GestorArchivos : Confirmar creación \nde archivo .csv
 deactivate CSV
 
 GestorArchivos --> Presentador : Notificar \nalmacenamiento \nexitoso
 deactivate GestorArchivos
 
-Presentador -> Vista : Notificar guardado \nfinalizado
+Presentador -> Vista : Notificar \nguardado \nfinalizado
 deactivate Presentador
 
 Vista --> Operador : Mostrar mensaje \nde confirmación \nde guardado en \npantalla

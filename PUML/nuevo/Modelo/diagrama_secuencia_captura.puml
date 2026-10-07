@@ -34,7 +34,7 @@ loop Sondeo de estado de disparo en segundo plano
     deactivate hal
 end
 
-marx -> dso: Evento físico: \nDescarga de alta tensión
+marx -> dso: Evento físico: \nDescarga de \nalta tensión
 activate dso
 note over dso
   Estado cambia a "Disparado".
@@ -57,16 +57,16 @@ activate dso
 dso --> hal: Bloque de datos
 deactivate dso
 
-hal -> hal: Desempaquetar datos brutos
+hal -> hal: Desempaquetar \ndatos brutos
 hal --> pres: Vector de tensión \nsin escalar y dt
 deactivate hal
 
 pres -> pres: Reescalar vector \ncon atenuación física
 
-pres -> dsp: Transferir vectores y solicitar cálculo normativo
+pres -> dsp: Transferir vectores y \nsolicitar cálculo normativo
 activate dsp
 
-dsp -> dsp: Calcular parámetros \n(Ut, T1, T2/Tc, OS%)
+dsp -> dsp: Calcular \nparámetros \n(Ut, T1, \nT2/Tc, OS%)
 dsp --> pres: Retornar curva de ensayo y resultados
 deactivate dsp
 
